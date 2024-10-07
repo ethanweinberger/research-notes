@@ -1,5 +1,7 @@
 name: deploy-book
 
+environment: github-pages
+
 on:
   # Trigger the workflow on push to main branch
   push:
