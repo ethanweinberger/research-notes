@@ -32,9 +32,9 @@
     <link rel="stylesheet" type="text/css" href="../../_static/styles/sphinx-book-theme.css?v=a3416100" />
     <link rel="stylesheet" type="text/css" href="../../_static/togglebutton.css?v=13237357" />
     <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
-    <link rel="stylesheet" type="text/css" href="../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css?v=be8a1c11" />
+    <link rel="stylesheet" type="text/css" href="../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/sphinx-thebe.css?v=4fa983c6" />
-    <link rel="stylesheet" type="text/css" href="../../_static/proof.css?v=ca93fcec" />
+    <link rel="stylesheet" type="text/css" href="../../_static/proof.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=95c83b7e" />
   
   <!-- Pre-loaded scripts that we'll load fully later -->
@@ -439,7 +439,7 @@ to vary smoothly across time, we’ll choose <span class="math notranslate nohig
 in the many convenient properties of multivariate Gaussians. For example, sums of Gaussians are Gaussian, and the marginal
 distributions of a multivariate Gaussian are Gaussian. In particular, one useful property of Gaussians is that they’re closed
 under conditioning.</p>
-<div class="proof proposition admonition" id="gp-conditioning">
+<div class="proof proposition admonition" id="conditioning">
 <p class="admonition-title"><span class="caption-number">Proposition 1 </span></p>
 <section class="proposition-content" id="proof-content">
 <p>Let <span class="math notranslate nohighlight">\(\mathbf{f}\)</span> denote the output of <span class="math notranslate nohighlight">\(f \sim \mathcal{GP}(\mathbf{0}, k(x, x'))\)</span> at a set of training inputs <span class="math notranslate nohighlight">\(X\)</span>, and define <span class="math notranslate nohighlight">\(\mathbf{f_*}\)</span> correspondingly for a set of test inputs whose values we don’t observe. We then have the joint distribution</p>

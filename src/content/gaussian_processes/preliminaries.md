@@ -67,7 +67,7 @@ distributions of a multivariate Gaussian are Gaussian. In particular, one useful
 under conditioning.
 
 ```{prf:proposition}
-:label: gp-conditioning
+:label: conditioning
 
 Let $\mathbf{f}$ denote the output of $f \sim \mathcal{GP}(\mathbf{0}, k(x, x'))$ at a set of training inputs $X$, and define $\mathbf{f_*}$ correspondingly for a set of test inputs whose values we don't observe. We then have the joint distribution
 

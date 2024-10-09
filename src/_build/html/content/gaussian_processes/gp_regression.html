@@ -384,7 +384,8 @@ document.write(`
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#optimizing-the-kernel-parameters">Optimizing the kernel parameters</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-noisy-case">The noisy case</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#choosing-the-kernel-parameters">Choosing the kernel parameters</a></li>
 </ul>
             </nav>
         </div>
@@ -402,17 +403,86 @@ document.write(`
 random variables. In this section we’ll demonstrate how these properties will allow us to solve regression
 tasks while naturally incorporating estimates of uncertainty.</p>
 <hr class="docutils" />
-<p>Suppose we’re given a training dataset consisting of <span class="math notranslate nohighlight">\(n\)</span> input points <span class="math notranslate nohighlight">\(\{x_i\}_{i=1}^{n}\)</span> as well as
-the corresponding outputs from a function <span class="math notranslate nohighlight">\(f(x_i)\)</span>. Based on some prior knowledge of <span class="math notranslate nohighlight">\(f\)</span>, we’ll assume that <span class="math notranslate nohighlight">\(f\)</span>
-follows a GP prior</p>
+<p>Suppose we’re given a training dataset consisting of <span class="math notranslate nohighlight">\(n\)</span> input points <span class="math notranslate nohighlight">\(\mathbf{x}_i \in \mathbb{R}^{d}\)</span> as well as
+the corresponding outputs from a function <span class="math notranslate nohighlight">\(f(\mathbf{x}_i) \in \mathbb{R}\)</span>. To make things easier in terms of notation, we’ll
+sometimes denote our training inputs as a matrix <span class="math notranslate nohighlight">\(X \in \mathbb{R}^{n \times d}\)</span>, and our training outputs as <span class="math notranslate nohighlight">\(\mathbf{f} \in
+\mathbb{R}^{n}\)</span>.</p>
+<p>Now let’s assume that <span class="math notranslate nohighlight">\(f\)</span> is drawn from a GP prior</p>
 <div class="math notranslate nohighlight">
-\[f \sim \mathcal{GP}(0, k(x, x'))\]</div>
-<p>with the kernel <span class="math notranslate nohighlight">\(k\)</span> chosen to reflect our knowledge of the world. Our task now to predict the values of <span class="math notranslate nohighlight">\(f\)</span> at a collection
-of test points <span class="math notranslate nohighlight">\(X_*\)</span>. To do so, we’ll exploit the fact that our function evaluations form a multivariate normal distribution, with</p>
+\[f \sim \mathcal{GP}(\mathbf{0}, k(\mathbf{x}, \mathbf{x}'))\]</div>
+<p>with the kernel <span class="math notranslate nohighlight">\(k\)</span> chosen to reflect some prior belief about how the outputs of our function vary with respect to the input values.
+Our task now to predict the values of <span class="math notranslate nohighlight">\(f\)</span> at a collection of test points <span class="math notranslate nohighlight">\(X_*\)</span> for which we don’t observe the outputs of our function
+<span class="math notranslate nohighlight">\(\mathbf{f}_*\)</span>. Based on our Gaussian process asssumption, we have</p>
 <div class="math notranslate nohighlight">
-\[\begin{split} \begin{bmatrix} f \\ f_* \end{bmatrix} \sim \mathcal{N}\left(\boldsymbol{0}, \begin{bmatrix} K(X, X) &amp; K(X, X_*) \\ K(X_*, X) &amp; K(X_*, X_*)\end{bmatrix}\right)\end{split}\]</div>
-<section id="optimizing-the-kernel-parameters">
-<h2>Optimizing the kernel parameters<a class="headerlink" href="#optimizing-the-kernel-parameters" title="Link to this heading">#</a></h2>
+\[\begin{split}
+\begin{eqnarray}
+\left[
+    \begin{array}{l}
+    \ \mathbf{f} \\ 
+    \ \mathbf{f_*}
+    \end{array}
+ \right]
+\end{eqnarray} \sim \mathcal{N}\left(\boldsymbol{0}, \begin{bmatrix} K(X, X) &amp; K(X, X_*) \\ K(X_*, X) &amp; K(X_*, X_*)\end{bmatrix}\right)\end{split}\]</div>
+<p>where <span class="math notranslate nohighlight">\(K(X,X)\)</span> denotes the <span class="math notranslate nohighlight">\(n \times n\)</span> matrix where the <span class="math notranslate nohighlight">\((i, j)\)</span>’th entry corresponds to our kernel function evaluated at the training
+inputs <span class="math notranslate nohighlight">\(\mathbf{x}_i\)</span> and <span class="math notranslate nohighlight">\(\mathbf{x}_j\)</span> (i.e., <span class="math notranslate nohighlight">\(k(\mathbf{x}_i, \mathbf{x}_j)\)</span>). We define <span class="math notranslate nohighlight">\(K(X, X_*)\)</span>, <span class="math notranslate nohighlight">\(K(X_*, X)\)</span>, and <span class="math notranslate nohighlight">\(K(X_*, X_*)\)</span>
+similarly for pairs of training and/or test inputs.</p>
+<p>With this fact and the conditioning property of Gaussians, we then immediately obtain:</p>
+<div class="math notranslate nohighlight">
+\[\mathbf{f_*} \mid X_*, X, \mathbf{f} \sim \mathcal{N}(K(X_*, X)K(X, X)^{-1}\mathbf{f}, K(X_*, X_*) - K(X_*, X)K(X, X)^{-1}K(X, X_*))\]</div>
+<p>We can then sample function values <span class="math notranslate nohighlight">\(\mathbf{f_*}\)</span> corresponding to our test inputs <span class="math notranslate nohighlight">\(X_*\)</span> by sampling from the above distribution.</p>
+<hr class="docutils" />
+<section id="the-noisy-case">
+<h2>The noisy case<a class="headerlink" href="#the-noisy-case" title="Link to this heading">#</a></h2>
+<p>In the previous section we assumed that our training dataset contains the true function values <span class="math notranslate nohighlight">\(f(\mathbf{x}_i)\)</span> for each input <span class="math notranslate nohighlight">\(\mathbf{x}_i\)</span>. In most realistic modeling scenarios, we won’t be so lucky to have the true function values. Instead, we might have noisy outputs</p>
+<div class="math notranslate nohighlight">
+\[ y_i = f(\mathbf{x}_i) + \varepsilon \]</div>
+<p>where our noise <span class="math notranslate nohighlight">\(\varepsilon \sim \mathcal{N}(0, \sigma^2)\)</span>. With this assumption, the covariance between any two evaluations of our <span class="math notranslate nohighlight">\(f\)</span> at points <span class="math notranslate nohighlight">\(\mathbf{x}_p\)</span> and <span class="math notranslate nohighlight">\(\mathbf{x}_q\)</span> becomes</p>
+<div class="math notranslate nohighlight">
+\[ cov(\mathbf{x}_p, \mathbf{x}_q) = k(\mathbf{x}_p, \mathbf{x}_q) + \delta_{pq}\sigma^2 \]</div>
+<p>where <span class="math notranslate nohighlight">\(\delta_{pq}\)</span> is one if <span class="math notranslate nohighlight">\(p = q\)</span> and zero otherwise; this reflects our assumption that the noise <span class="math notranslate nohighlight">\(\varepsilon\)</span> is independent
+from the value of our function inputs. Letting <span class="math notranslate nohighlight">\(\mathbf{y} \in \mathbb{R}\)</span> denote our noisy outputs <span class="math notranslate nohighlight">\(\{y_i\}\)</span> collected into a single vector, we can equivalently write</p>
+<div class="math notranslate nohighlight">
+\[ cov(\mathbf{y}) = K(X, X) + \sigma^2I \]</div>
+<p>With this additional noise term, our joint distribution for training and test point outputs then becomes</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}
+\begin{eqnarray}
+\left[
+    \begin{array}{l}
+    \ \mathbf{y} \\ 
+    \ \mathbf{f_*}
+    \end{array}
+ \right]
+\end{eqnarray} \sim \mathcal{N}\left(\mathbf{0}, \begin{bmatrix} K(X, X) + \sigma^2I &amp; K(X, X_*) \\ K(X_*, X) &amp; K(X_*, X_*)\end{bmatrix}\right)
+\end{split}\]</div>
+<p>Just as before, we can apply the conditioning property of multivariate normal distributions to obtain</p>
+<div class="math notranslate nohighlight">
+\[ \mathbf{f_*} \mid X_*, X, \mathbf{y} \sim \mathcal{N}(\mathbf{\mu}_*, \mathbf{\Sigma}_*) \]</div>
+<p>where</p>
+<div class="math notranslate nohighlight">
+\[ \mathbf{\mu}_* = K(X_*, X)(K(X, X) + \sigma^2I)^{-1}\mathbf{y} \]</div>
+<p>and</p>
+<div class="math notranslate nohighlight">
+\[ \mathbf{\Sigma}_* = K(X_*, X_*) - K(X_*, X)(K(X, X) + \sigma^2I)^{-1}K(X, X_*) \]</div>
+</section>
+<section id="choosing-the-kernel-parameters">
+<h2>Choosing the kernel parameters<a class="headerlink" href="#choosing-the-kernel-parameters" title="Link to this heading">#</a></h2>
+<p>So far we’ve assumed a fixed kernel function <span class="math notranslate nohighlight">\(k(\cdot, \cdot)\)</span>. In practice, typically the kernel will have some hyperparameters
+<span class="math notranslate nohighlight">\(\theta\)</span> that we must specify. For example, the radial basis function kernel takes the form</p>
+<div class="math notranslate nohighlight">
+\[ k(\mathbf{x}_p, \mathbf{x}_q) = \sigma^2_f \exp\left(-\frac{1}{2\ell^2}(\mathbf{x}_p -  \mathbf{x}_q)^2\right) \]</div>
+<p>where our hyperparameters <span class="math notranslate nohighlight">\(\theta = \{\sigma^2_f, \ell\}\)</span> are the signal variance <span class="math notranslate nohighlight">\(\sigma^2_f\)</span> and the length-scale <span class="math notranslate nohighlight">\(\ell\)</span>. Note that, with our assumption of i.i.d. Gaussian noise we then have</p>
+<div class="math notranslate nohighlight">
+\[ cov(\mathbf{x}_p, \mathbf{x}_q) = \sigma^2_f \exp\left(-\frac{1}{2\ell^2}(\mathbf{x}_p -  \mathbf{x}_q)^2\right) + \delta_{pq}\sigma^2 \]</div>
+<p>These parameters can have a <em>major impact</em> on our final predictions. Thus, we need a systematic way to chose “good” values of
+our hyperparameters. One way to do so is to set the parameters via maximum likelihood estimation, i.e., we choose the parameters
+that maximize the likelihood <span class="math notranslate nohighlight">\(p(\mathbf{y} \mid X)\)</span> of our observed training data given the corresponding inputs. Based on our
+assumptions in the previous subsection, we know</p>
+<div class="math notranslate nohighlight">
+\[ \mathbf{y} \mid X \sim \mathcal{N}(\mathbf{0}, K(X, X) + \sigma_n^2I).\]</div>
+<p>Thus, from the definition of the multivariate Gaussian distribution, we have</p>
+<div class="math notranslate nohighlight">
+\[ p(\mathbf{y} \mid X) = -\frac{1}{2}\mathbf{y}^{T}(K(X, X) + \sigma_n^2I)^{-1}\mathbf{y} - \frac{1}{2}\left|K(X, X) + \sigma_n^2I\right| - \frac{n}{2}\log 2\pi \]</div>
 </section>
 </section>
 
@@ -480,7 +550,8 @@ of test points <span class="math notranslate nohighlight">\(X_*\)</span>. To do 
   </div>
   <nav class="bd-toc-nav page-toc">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#optimizing-the-kernel-parameters">Optimizing the kernel parameters</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-noisy-case">The noisy case</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#choosing-the-kernel-parameters">Choosing the kernel parameters</a></li>
 </ul>
   </nav></div>
 
