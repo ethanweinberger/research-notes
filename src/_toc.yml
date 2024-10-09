@@ -6,4 +6,6 @@ root: intro
 chapters:
 - file: content/gaussian_processes/overview
   sections:
+    - file: content/gaussian_processes/preliminaries
     - file: content/gaussian_processes/gp_regression
+    - file: content/gaussian_processes/pseudo_data

@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Gaussian Processes &#8212; Research Notes</title>
+    <title>Gaussian Processes 1: Preliminaries &#8212; Research Notes</title>
   
   
   
@@ -60,11 +60,11 @@
     <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"; const thebe_selector = ".thebe,.cell"; const thebe_selector_input = "pre"; const thebe_selector_output = ".output, .cell_output"</script>
     <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
     <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-    <script>DOCUMENTATION_OPTIONS.pagename = 'content/gaussian_processes/overview';</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'content/gaussian_processes/preliminaries';</script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-    <link rel="next" title="Gaussian Processes 1: Preliminaries" href="preliminaries.html" />
-    <link rel="prev" title="Machine Learning Notes" href="../../intro.html" />
+    <link rel="next" title="Gaussian Processes 2: GP Regression" href="gp_regression.html" />
+    <link rel="prev" title="Gaussian Processes" href="overview.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   </head>
@@ -183,8 +183,8 @@
             </li>
         </ul>
         <ul class="current nav bd-sidenav">
-<li class="toctree-l1 current active has-children"><a class="current reference internal" href="#">Gaussian Processes</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l2"><a class="reference internal" href="preliminaries.html">Gaussian Processes 1: Preliminaries</a></li>
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="overview.html">Gaussian Processes</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">Gaussian Processes 1: Preliminaries</a></li>
 <li class="toctree-l2"><a class="reference internal" href="gp_regression.html">Gaussian Processes 2: GP Regression</a></li>
 <li class="toctree-l2"><a class="reference internal" href="pseudo_data.html">Gaussian Processes 2: Sparse GPs with Pseudo-inputs</a></li>
 </ul>
@@ -260,7 +260,7 @@
       
       
       
-      <li><a href="https://github.com/ethanweinberger/Research_Notes/issues/new?title=Issue%20on%20page%20%2Fcontent/gaussian_processes/overview.html&body=Your%20issue%20content%20here." target="_blank"
+      <li><a href="https://github.com/ethanweinberger/Research_Notes/issues/new?title=Issue%20on%20page%20%2Fcontent/gaussian_processes/preliminaries.html&body=Your%20issue%20content%20here." target="_blank"
    class="btn btn-sm btn-source-issues-button dropdown-item"
    title="Open an issue"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -290,7 +290,7 @@
       
       
       
-      <li><a href="../../_sources/content/gaussian_processes/overview.md" target="_blank"
+      <li><a href="../../_sources/content/gaussian_processes/preliminaries.md" target="_blank"
    class="btn btn-sm btn-download-source-button dropdown-item"
    title="Download source file"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -372,7 +372,7 @@ document.write(`
               
 
 <div id="jb-print-docs-body" class="onlyprint">
-    <h1>Gaussian Processes</h1>
+    <h1>Gaussian Processes 1: Preliminaries</h1>
     <!-- Table of contents -->
     <div id="print-main-content">
         <div id="jb-print-toc">
@@ -386,16 +386,70 @@ document.write(`
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section class="tex2jax_ignore mathjax_ignore" id="gaussian-processes">
-<h1>Gaussian Processes<a class="headerlink" href="#gaussian-processes" title="Link to this heading">#</a></h1>
-<p>These notes contain explanations on various topics in Gaussian Processes.</p>
-<div class="toctree-wrapper compound">
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="preliminaries.html">Gaussian Processes 1: Preliminaries</a></li>
-<li class="toctree-l1"><a class="reference internal" href="gp_regression.html">Gaussian Processes 2: GP Regression</a></li>
-<li class="toctree-l1"><a class="reference internal" href="pseudo_data.html">Gaussian Processes 2: Sparse GPs with Pseudo-inputs</a></li>
-</ul>
-</div>
+  <section class="tex2jax_ignore mathjax_ignore" id="gaussian-processes-1-preliminaries">
+<h1>Gaussian Processes 1: Preliminaries<a class="headerlink" href="#gaussian-processes-1-preliminaries" title="Link to this heading">#</a></h1>
+<p>We begin with a general definition.</p>
+<div class="proof definition admonition" id="stochastic-process">
+<p class="admonition-title"><span class="caption-number">Definition 1 </span></p>
+<section class="definition-content" id="proof-content">
+<p>A stochastic process <span class="math notranslate nohighlight">\(f\)</span> is a collection of random variables indexed by <span class="math notranslate nohighlight">\(x \in \mathcal{X}\)</span>. I.e.,</p>
+<div class="math notranslate nohighlight">
+\[ f = \{ f(x) : x \in \mathcal{X}\} \]</div>
+</section>
+</div><p>In the above definition, <span class="math notranslate nohighlight">\(\mathcal{X}\)</span>  is an arbitrary indexing set. When modeling real-world
+phenomena, we typically assume that <span class="math notranslate nohighlight">\(\mathcal{X}\)</span> corresponds to some semantically meaningful concept. For example,
+if we want to model some phenomenon over <em>time</em>, we could use <span class="math notranslate nohighlight">\(\mathcal{X} = \mathbb{R}\)</span> with <span class="math notranslate nohighlight">\(x \in \mathcal{X}\)</span>
+corresponding to an individual point in time. Similarly, if we want to model some phenomenon that varies across
+two-dimensional <em>space</em> we could let <span class="math notranslate nohighlight">\(\mathcal{X} = \mathbb{R}^2\)</span> with <span class="math notranslate nohighlight">\(x \in \mathcal{X}\)</span> now corresponding
+to spatial coordinates.</p>
+<p>If <span class="math notranslate nohighlight">\(\mathcal{X} = \mathbb{R}^n\)</span>, then we say that <span class="math notranslate nohighlight">\(f\)</span> is an infinite-dimensional process. Based on the examples above,
+it’s clear that we’d like to be able to model infinite-dimensional processes! However, dealing with infite collections
+of random variables presents some technical mathematical difficulties. For example, can we define the law of
+law of <span class="math notranslate nohighlight">\(f\)</span>? I.e., can we compute statements like <span class="math notranslate nohighlight">\(\mathbb{P}(f(x_1) \in [a_1, b_1], f(x_2) \in [a_2, b_2], \ldots)\)</span>?. Is
+this law guaranteed to be unique? Etc.</p>
+<p>Fortunately for us, Kolmogorov <a class="reference external" href="https://en.wikipedia.org/wiki/Kolmogorov_extension_theorem">showed</a> that we can get
+away with only considering finite-dimensional distributions.</p>
+<div class="proof definition admonition" id="fdds">
+<p class="admonition-title"><span class="caption-number">Definition 2 </span></p>
+<section class="definition-content" id="proof-content">
+<p>For a stochastic process <span class="math notranslate nohighlight">\(f\)</span> we define <span class="math notranslate nohighlight">\(f\)</span>’s finite-dimensional distributions (FDDs) as the collection of distributions</p>
+<div class="math notranslate nohighlight">
+\[
+    \mathbb{P}(f(x_1) \leq y_1, \ldots, f(x_n) \leq y_n)
+\]</div>
+<p>for all finite sets <span class="math notranslate nohighlight">\((x_1, \ldots, x_n)\)</span> of indices in <span class="math notranslate nohighlight">\(\mathcal{X}\)</span>,</p>
+</section>
+</div><p>In particular, for a given process <span class="math notranslate nohighlight">\(f\)</span>, the FDDs uniquely determine the law of <span class="math notranslate nohighlight">\(f\)</span>. This brings us to our central object of study,
+the <em>Gaussian process</em>.</p>
+<div class="proof definition admonition" id="gaussian-process">
+<p class="admonition-title"><span class="caption-number">Definition 3 </span></p>
+<section class="definition-content" id="proof-content">
+<p>A Gaussian process (GP) is a stochastic process with Gaussian finite dimensional distributions. I.e.,</p>
+<div class="math notranslate nohighlight">
+\[ (f(x_1), \ldots, f(x_n)) \sim \mathcal{N}(\mu, \Sigma)\]</div>
+<p>A GP is completely specified by its mean and covariance, which specify as functions of the index set. For a GP <span class="math notranslate nohighlight">\(f\)</span> with
+mean function <span class="math notranslate nohighlight">\(m(x)\)</span> and covariance function <span class="math notranslate nohighlight">\(k(x, x')\)</span>, we write</p>
+<div class="math notranslate nohighlight">
+\[f \sim \mathcal{GP}(m(x), k(x, x'))\]</div>
+</section>
+</div><p>For computational convenience we’ll typyically take <span class="math notranslate nohighlight">\(m(x) = 0\)</span>. For the covariance, we can choose any positive
+semidefinite function, and we’ll typically choose <span class="math notranslate nohighlight">\(k\)</span> to reflect some prior knowledge. For example, if we expect output values
+to vary smoothly across time, we’ll choose <span class="math notranslate nohighlight">\(k\)</span> to reflect this fact. We defer a detailed discussion on kernel functions until later.</p>
+<p>Now, <em>why</em> are we considering the Gaussian process specifically? In short, the answer lies
+in the many convenient properties of multivariate Gaussians. For example, sums of Gaussians are Gaussian, and the marginal
+distributions of a multivariate Gaussian are Gaussian. In particular, one useful property of Gaussians is that they’re closed
+under conditioning.</p>
+<div class="proof proposition admonition" id="gp-conditioning">
+<p class="admonition-title"><span class="caption-number">Proposition 1 </span></p>
+<section class="proposition-content" id="proof-content">
+<p>Let <span class="math notranslate nohighlight">\(\mathbf{f}\)</span> denote the output of <span class="math notranslate nohighlight">\(f \sim \mathcal{GP}(\mathbf{0}, k(x, x'))\)</span> at a set of training inputs <span class="math notranslate nohighlight">\(X\)</span>, and define <span class="math notranslate nohighlight">\(\mathbf{f_*}\)</span> correspondingly for a set of test inputs whose values we don’t observe. We then have the joint distribution</p>
+<div class="math notranslate nohighlight">
+\[\begin{split} \begin{pmatrix} \mathbf{f} \\ \mathbf{f_*} \end{pmatrix} \sim \mathcal{N}\left(\mathbf{0},\begin{bmatrix} K(X,X), K(X, X_*) \\ K(X_*, X), K(X_*, X_*)\end{bmatrix}\right)\end{split}\]</div>
+<p>Conditioning on the observed training points then gives us</p>
+<div class="math notranslate nohighlight">
+\[\mathbf{f_*} \mid X_*, X, \mathbf{f} \sim \mathcal{N}(K(X_*, X)K(X, X)^{-1}\mathbf{f}, K(X_*, X_*) - K(X_*, X)K(X, X)^{-1}K(X, X_*))\]</div>
+</section>
+</div><p>The above proposition is <em>extremely</em> useful. By specifying some prior on how our function’s outputs should be have with respect to the inputs (i.e., the covariance function <span class="math notranslate nohighlight">\(k\)</span>), we can leverage any observed data points to make predictions on the distributions for points at unobserved inputs.</p>
 </section>
 
     <script type="text/x-thebe-config">
@@ -429,20 +483,20 @@ document.write(`
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="../../intro.html"
+       href="overview.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">Machine Learning Notes</p>
+        <p class="prev-next-title">Gaussian Processes</p>
       </div>
     </a>
     <a class="right-next"
-       href="preliminaries.html"
+       href="gp_regression.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Gaussian Processes 1: Preliminaries</p>
+        <p class="prev-next-title">Gaussian Processes 2: GP Regression</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
