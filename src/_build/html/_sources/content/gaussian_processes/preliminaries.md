@@ -175,6 +175,7 @@ mystnb:
 ---
 import scipy
 
+
 # Define the exponentiated quadratic 
 def exponentiated_quadratic(xa, xb):
     """Exponentiated quadratic  with σ=1"""
