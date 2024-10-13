@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Gaussian Processes 2: Sparse GPs with Pseudo-inputs &#8212; Research Notes</title>
+    <title>Gaussian Processes 3: Sparse GPs with inducing points &#8212; Research Notes</title>
   
   
   
@@ -58,10 +58,12 @@
     <script async="async" src="../../_static/sphinx-thebe.js?v=c100c467"></script>
     <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
     <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"; const thebe_selector = ".thebe,.cell"; const thebe_selector_input = "pre"; const thebe_selector_output = ".output, .cell_output"</script>
+    <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+    <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'content/gaussian_processes/pseudo_data';</script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-    <link rel="prev" title="Gaussian Processes 2: GP Regression" href="gp_regression.html" />
+    <link rel="prev" title="Gaussian Processes 2: Gaussian process regression" href="gp_regression.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   </head>
@@ -182,8 +184,8 @@
         <ul class="current nav bd-sidenav">
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="overview.html">Gaussian Processes</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="preliminaries.html">Gaussian Processes 1: Preliminaries</a></li>
-<li class="toctree-l2"><a class="reference internal" href="gp_regression.html">Gaussian Processes 2: GP Regression</a></li>
-<li class="toctree-l2 current active"><a class="current reference internal" href="#">Gaussian Processes 2: Sparse GPs with Pseudo-inputs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="gp_regression.html">Gaussian Processes 2: Gaussian process regression</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">Gaussian Processes 3: Sparse GPs with inducing points</a></li>
 </ul>
 </details></li>
 </ul>
@@ -369,7 +371,7 @@ document.write(`
               
 
 <div id="jb-print-docs-body" class="onlyprint">
-    <h1>Gaussian Processes 2: Sparse GPs with Pseudo-inputs</h1>
+    <h1>Gaussian Processes 3: Sparse GPs with inducing points</h1>
     <!-- Table of contents -->
     <div id="print-main-content">
         <div id="jb-print-toc">
@@ -383,9 +385,19 @@ document.write(`
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section class="tex2jax_ignore mathjax_ignore" id="gaussian-processes-2-sparse-gps-with-pseudo-inputs">
-<h1>Gaussian Processes 2: Sparse GPs with Pseudo-inputs<a class="headerlink" href="#gaussian-processes-2-sparse-gps-with-pseudo-inputs" title="Link to this heading">#</a></h1>
-<p>Previously, we</p>
+  <section class="tex2jax_ignore mathjax_ignore" id="gaussian-processes-3-sparse-gps-with-inducing-points">
+<h1>Gaussian Processes 3: Sparse GPs with inducing points<a class="headerlink" href="#gaussian-processes-3-sparse-gps-with-inducing-points" title="Link to this heading">#</a></h1>
+<p>In the previous section we discussed how to perform Gaussian process regression to estimate the
+values of a function <span class="math notranslate nohighlight">\(f\)</span>. Our solution relied on the convenient properties of the multivariate
+normal distribution, which allowed us to compute posterior distributions of unknown function outputs
+in closed form.</p>
+<p>Unfortunately, while it’s straightforward to write down the equations for the posterior distribution,
+actually <em>computing</em> it is non-trivial. Specifically, the posterior distribution requires inverting
+the covariance matrix <span class="math notranslate nohighlight">\(K(X, X)\)</span>, which requires <span class="math notranslate nohighlight">\(\mathcal{O}(N^3)\)</span> operations; thus as the size of our training
+data increases, this operation quickly becomes infeasible.</p>
+<p>To work around this issue, a number of works have proposed so-called <em>sparse</em> Gaussian process methods that take varying
+approaches to approximate the information contained in the full covariance matrix. In this section we’ll review one popular
+sparse GP method, known as the <em>inducing point</em> method.</p>
 </section>
 
     <script type="text/x-thebe-config">
@@ -424,7 +436,7 @@ document.write(`
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">Gaussian Processes 2: GP Regression</p>
+        <p class="prev-next-title">Gaussian Processes 2: Gaussian process regression</p>
       </div>
     </a>
 </div>

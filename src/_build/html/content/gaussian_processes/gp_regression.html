@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Gaussian Processes 2: GP Regression &#8212; Research Notes</title>
+    <title>Gaussian Processes 2: Gaussian process regression &#8212; Research Notes</title>
   
   
   
@@ -32,9 +32,9 @@
     <link rel="stylesheet" type="text/css" href="../../_static/styles/sphinx-book-theme.css?v=a3416100" />
     <link rel="stylesheet" type="text/css" href="../../_static/togglebutton.css?v=13237357" />
     <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
-    <link rel="stylesheet" type="text/css" href="../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css?v=be8a1c11" />
+    <link rel="stylesheet" type="text/css" href="../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/sphinx-thebe.css?v=4fa983c6" />
-    <link rel="stylesheet" type="text/css" href="../../_static/proof.css?v=ca93fcec" />
+    <link rel="stylesheet" type="text/css" href="../../_static/proof.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=95c83b7e" />
   
   <!-- Pre-loaded scripts that we'll load fully later -->
@@ -63,7 +63,7 @@
     <script>DOCUMENTATION_OPTIONS.pagename = 'content/gaussian_processes/gp_regression';</script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-    <link rel="next" title="Gaussian Processes 2: Sparse GPs with Pseudo-inputs" href="pseudo_data.html" />
+    <link rel="next" title="Gaussian Processes 3: Sparse GPs with inducing points" href="pseudo_data.html" />
     <link rel="prev" title="Gaussian Processes 1: Preliminaries" href="preliminaries.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
@@ -185,8 +185,8 @@
         <ul class="current nav bd-sidenav">
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="overview.html">Gaussian Processes</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="preliminaries.html">Gaussian Processes 1: Preliminaries</a></li>
-<li class="toctree-l2 current active"><a class="current reference internal" href="#">Gaussian Processes 2: GP Regression</a></li>
-<li class="toctree-l2"><a class="reference internal" href="pseudo_data.html">Gaussian Processes 2: Sparse GPs with Pseudo-inputs</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">Gaussian Processes 2: Gaussian process regression</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pseudo_data.html">Gaussian Processes 3: Sparse GPs with inducing points</a></li>
 </ul>
 </details></li>
 </ul>
@@ -374,7 +374,7 @@ document.write(`
               
 
 <div id="jb-print-docs-body" class="onlyprint">
-    <h1>Gaussian Processes 2: GP Regression</h1>
+    <h1>Gaussian Processes 2: Gaussian process regression</h1>
     <!-- Table of contents -->
     <div id="print-main-content">
         <div id="jb-print-toc">
@@ -397,22 +397,14 @@ document.write(`
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section class="tex2jax_ignore mathjax_ignore" id="gaussian-processes-2-gp-regression">
-<h1>Gaussian Processes 2: GP Regression<a class="headerlink" href="#gaussian-processes-2-gp-regression" title="Link to this heading">#</a></h1>
-<p>In the previous section we introduced the Gaussian process and reviewed some useful properties of Gaussian
-random variables. In this section we’ll demonstrate how these properties will allow us to solve regression
-tasks while naturally incorporating estimates of uncertainty.</p>
+  <section class="tex2jax_ignore mathjax_ignore" id="gaussian-processes-2-gaussian-process-regression">
+<h1>Gaussian Processes 2: Gaussian process regression<a class="headerlink" href="#gaussian-processes-2-gaussian-process-regression" title="Link to this heading">#</a></h1>
+<p>In the previous section we introduced stochsatic processes and defined the Gaussian process. In this section we’ll demonstrate how Gaussian processes will allow us to solve regression tasks while naturally incorporating estimates of uncertainty.</p>
 <hr class="docutils" />
-<p>Suppose we’re given a training dataset consisting of <span class="math notranslate nohighlight">\(n\)</span> input points <span class="math notranslate nohighlight">\(\mathbf{x}_i \in \mathbb{R}^{d}\)</span> as well as
-the corresponding outputs from a function <span class="math notranslate nohighlight">\(f(\mathbf{x}_i) \in \mathbb{R}\)</span>. To make things easier in terms of notation, we’ll
-sometimes denote our training inputs as a matrix <span class="math notranslate nohighlight">\(X \in \mathbb{R}^{n \times d}\)</span>, and our training outputs as <span class="math notranslate nohighlight">\(\mathbf{f} \in
-\mathbb{R}^{n}\)</span>.</p>
-<p>Now let’s assume that <span class="math notranslate nohighlight">\(f\)</span> is drawn from a GP prior</p>
+<p>Suppose we’re given values of our function <span class="math notranslate nohighlight">\(f(\mathbf{x}_i) \in \mathbb{R}\)</span> evaluated  at <span class="math notranslate nohighlight">\(n\)</span> input points <span class="math notranslate nohighlight">\(\mathbf{x}_i \in \mathbb{R}^{d}\)</span>. We’ll sometimes refer to this observed data as our <em>training data</em>. To simplify our notation, we’ll use the matrix <span class="math notranslate nohighlight">\(X \in \mathbb{R}^{n \times d}\)</span> to denote matrix of function input values for our training data, and we’ll correspondingly use <span class="math notranslate nohighlight">\(\mathbf{f} \in \mathbb{R}^{n}\)</span> to represent our training data’s function outputs. Now let’s assume that <span class="math notranslate nohighlight">\(f\)</span> is drawn from a Gaussian process, i.e.,</p>
 <div class="math notranslate nohighlight">
-\[f \sim \mathcal{GP}(\mathbf{0}, k(\mathbf{x}, \mathbf{x}'))\]</div>
-<p>with the kernel <span class="math notranslate nohighlight">\(k\)</span> chosen to reflect some prior belief about how the outputs of our function vary with respect to the input values.
-Our task now to predict the values of <span class="math notranslate nohighlight">\(f\)</span> at a collection of test points <span class="math notranslate nohighlight">\(X_*\)</span> for which we don’t observe the outputs of our function
-<span class="math notranslate nohighlight">\(\mathbf{f}_*\)</span>. Based on our Gaussian process asssumption, we have</p>
+\[f \sim \mathcal{GP}(\mathbf{0}, k(\mathbf{x}, \mathbf{x}'),\]</div>
+<p>with the kernel <span class="math notranslate nohighlight">\(k\)</span> chosen to reflect some prior belief about how the outputs of our function vary with respect to the input values. Our task now to predict the values of <span class="math notranslate nohighlight">\(f\)</span> at a collection of test points <span class="math notranslate nohighlight">\(X_*\)</span> for which we don’t observe the corresponding outputs <span class="math notranslate nohighlight">\(\mathbf{f}_*\)</span>. Based on our Gaussian process asssumption, we have</p>
 <div class="math notranslate nohighlight">
 \[\begin{split}
 \begin{eqnarray}
@@ -425,8 +417,7 @@ Our task now to predict the values of <span class="math notranslate nohighlight"
 \end{eqnarray} \sim \mathcal{N}\left(\boldsymbol{0}, \begin{bmatrix} K(X, X) &amp; K(X, X_*) \\ K(X_*, X) &amp; K(X_*, X_*)\end{bmatrix}\right)\end{split}\]</div>
 <p>where <span class="math notranslate nohighlight">\(K(X,X)\)</span> denotes the <span class="math notranslate nohighlight">\(n \times n\)</span> matrix where the <span class="math notranslate nohighlight">\((i, j)\)</span>’th entry corresponds to our kernel function evaluated at the training
 inputs <span class="math notranslate nohighlight">\(\mathbf{x}_i\)</span> and <span class="math notranslate nohighlight">\(\mathbf{x}_j\)</span> (i.e., <span class="math notranslate nohighlight">\(k(\mathbf{x}_i, \mathbf{x}_j)\)</span>). We define <span class="math notranslate nohighlight">\(K(X, X_*)\)</span>, <span class="math notranslate nohighlight">\(K(X_*, X)\)</span>, and <span class="math notranslate nohighlight">\(K(X_*, X_*)\)</span>
-similarly for pairs of training and/or test inputs.</p>
-<p>With this fact and the conditioning property of Gaussians, we then immediately obtain:</p>
+analogously for pairs of training and/or test inputs. From the conditioning property of Gaussians, we then immediately obtain:</p>
 <div class="math notranslate nohighlight">
 \[\mathbf{f_*} \mid X_*, X, \mathbf{f} \sim \mathcal{N}(K(X_*, X)K(X, X)^{-1}\mathbf{f}, K(X_*, X_*) - K(X_*, X)K(X, X)^{-1}K(X, X_*))\]</div>
 <p>We can then sample function values <span class="math notranslate nohighlight">\(\mathbf{f_*}\)</span> corresponding to our test inputs <span class="math notranslate nohighlight">\(X_*\)</span> by sampling from the above distribution.</p>
@@ -440,7 +431,7 @@ similarly for pairs of training and/or test inputs.</p>
 <div class="math notranslate nohighlight">
 \[ cov(\mathbf{x}_p, \mathbf{x}_q) = k(\mathbf{x}_p, \mathbf{x}_q) + \delta_{pq}\sigma^2 \]</div>
 <p>where <span class="math notranslate nohighlight">\(\delta_{pq}\)</span> is one if <span class="math notranslate nohighlight">\(p = q\)</span> and zero otherwise; this reflects our assumption that the noise <span class="math notranslate nohighlight">\(\varepsilon\)</span> is independent
-from the value of our function inputs. Letting <span class="math notranslate nohighlight">\(\mathbf{y} \in \mathbb{R}\)</span> denote our noisy outputs <span class="math notranslate nohighlight">\(\{y_i\}\)</span> collected into a single vector, we can equivalently write</p>
+from the value of our function inputs. Letting <span class="math notranslate nohighlight">\(\mathbf{y} \in \mathbb{R}^{n}\)</span> denote our noisy outputs <span class="math notranslate nohighlight">\(\{y_i\}\)</span> collected into a single vector, we can equivalently write</p>
 <div class="math notranslate nohighlight">
 \[ cov(\mathbf{y}) = K(X, X) + \sigma^2I \]</div>
 <p>With this additional noise term, our joint distribution for training and test point outputs then becomes</p>
@@ -457,13 +448,13 @@ from the value of our function inputs. Letting <span class="math notranslate noh
 \end{split}\]</div>
 <p>Just as before, we can apply the conditioning property of multivariate normal distributions to obtain</p>
 <div class="math notranslate nohighlight">
-\[ \mathbf{f_*} \mid X_*, X, \mathbf{y} \sim \mathcal{N}(\mathbf{\mu}_*, \mathbf{\Sigma}_*) \]</div>
+\[ \mathbf{f_*} \mid X_*, X, \mathbf{y} \sim \mathcal{N}(\mathbf{\mu}_*, \mathbf{\Sigma}_*),\]</div>
 <p>where</p>
 <div class="math notranslate nohighlight">
 \[ \mathbf{\mu}_* = K(X_*, X)(K(X, X) + \sigma^2I)^{-1}\mathbf{y} \]</div>
 <p>and</p>
 <div class="math notranslate nohighlight">
-\[ \mathbf{\Sigma}_* = K(X_*, X_*) - K(X_*, X)(K(X, X) + \sigma^2I)^{-1}K(X, X_*) \]</div>
+\[ \mathbf{\Sigma}_* = K(X_*, X_*) - K(X_*, X)(K(X, X) + \sigma^2I)^{-1}K(X, X_*).\]</div>
 </section>
 <section id="choosing-the-kernel-parameters">
 <h2>Choosing the kernel parameters<a class="headerlink" href="#choosing-the-kernel-parameters" title="Link to this heading">#</a></h2>
@@ -471,18 +462,21 @@ from the value of our function inputs. Letting <span class="math notranslate noh
 <span class="math notranslate nohighlight">\(\theta\)</span> that we must specify. For example, the radial basis function kernel takes the form</p>
 <div class="math notranslate nohighlight">
 \[ k(\mathbf{x}_p, \mathbf{x}_q) = \sigma^2_f \exp\left(-\frac{1}{2\ell^2}(\mathbf{x}_p -  \mathbf{x}_q)^2\right) \]</div>
-<p>where our hyperparameters <span class="math notranslate nohighlight">\(\theta = \{\sigma^2_f, \ell\}\)</span> are the signal variance <span class="math notranslate nohighlight">\(\sigma^2_f\)</span> and the length-scale <span class="math notranslate nohighlight">\(\ell\)</span>. Note that, with our assumption of i.i.d. Gaussian noise we then have</p>
+<p>where our hyperparameters <span class="math notranslate nohighlight">\(\theta = \{\sigma^2_f, \ell\}\)</span> are the signal variance <span class="math notranslate nohighlight">\(\sigma^2_f\)</span> and the length-scale <span class="math notranslate nohighlight">\(\ell\)</span>. To emphasize
+the dependence of a kernel on its hyperparameters, we may sometimes write <span class="math notranslate nohighlight">\(k_{\theta}(\cdot, \cdot)\)</span> instead of just <span class="math notranslate nohighlight">\(k(\cdot, \cdot)\)</span>.
+Note that, with our assumption of i.i.d. Gaussian noise we then have</p>
 <div class="math notranslate nohighlight">
 \[ cov(\mathbf{x}_p, \mathbf{x}_q) = \sigma^2_f \exp\left(-\frac{1}{2\ell^2}(\mathbf{x}_p -  \mathbf{x}_q)^2\right) + \delta_{pq}\sigma^2 \]</div>
 <p>These parameters can have a <em>major impact</em> on our final predictions. Thus, we need a systematic way to chose “good” values of
 our hyperparameters. One way to do so is to set the parameters via maximum likelihood estimation, i.e., we choose the parameters
-that maximize the likelihood <span class="math notranslate nohighlight">\(p(\mathbf{y} \mid X)\)</span> of our observed training data given the corresponding inputs. Based on our
-assumptions in the previous subsection, we know</p>
+that maximize the likelihood <span class="math notranslate nohighlight">\(p(\mathbf{y} \mid X, \theta)\)</span> of our observed training data given the corresponding inputs and
+hyperparameters. Based on our assumptions in the previous subsection, we know</p>
 <div class="math notranslate nohighlight">
-\[ \mathbf{y} \mid X \sim \mathcal{N}(\mathbf{0}, K(X, X) + \sigma_n^2I).\]</div>
+\[ \mathbf{y} \mid X, \theta \sim \mathcal{N}(\mathbf{0}, K_{\theta}(X, X) + \sigma_n^2I).\]</div>
 <p>Thus, from the definition of the multivariate Gaussian distribution, we have</p>
 <div class="math notranslate nohighlight">
-\[ p(\mathbf{y} \mid X) = -\frac{1}{2}\mathbf{y}^{T}(K(X, X) + \sigma_n^2I)^{-1}\mathbf{y} - \frac{1}{2}\left|K(X, X) + \sigma_n^2I\right| - \frac{n}{2}\log 2\pi \]</div>
+\[ p(\mathbf{y} \mid X, \theta) = -\frac{1}{2}\mathbf{y}^{T}(K_{\theta}(X, X) + \sigma_n^2I)^{-1}\mathbf{y} - \frac{1}{2}\left|K_{\theta}(X, X) + \sigma_n^2I\right| - \frac{n}{2}\log 2\pi.\]</div>
+<p>We can then optimize <span class="math notranslate nohighlight">\(\theta\)</span> (e.g. via gradient ascent) to maximize the above quantity.</p>
 </section>
 </section>
 
@@ -530,7 +524,7 @@ assumptions in the previous subsection, we know</p>
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Gaussian Processes 2: Sparse GPs with Pseudo-inputs</p>
+        <p class="prev-next-title">Gaussian Processes 3: Sparse GPs with inducing points</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
