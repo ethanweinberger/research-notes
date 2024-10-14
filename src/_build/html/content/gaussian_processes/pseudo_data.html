@@ -398,6 +398,46 @@ data increases, this operation quickly becomes infeasible.</p>
 <p>To work around this issue, a number of works have proposed so-called <em>sparse</em> Gaussian process methods that take varying
 approaches to approximate the information contained in the full covariance matrix. In this section we’ll review one popular
 sparse GP method, known as the <em>inducing point</em> method.</p>
+<hr class="docutils" />
+<p>When placing a GP prior on a function, we implicitly assert the existence of some redundancy and/or correlation in the relationship between the function’s inputs and outputs. For example, the RBF kernel</p>
+<div class="math notranslate nohighlight">
+\[k(\mathbf{x}, \mathbf{x}') = \exp\left(-\frac{||\mathbf{x} - \mathbf{x}'||^2}{2\sigma^2}\right)\]</div>
+<p>enforces that function outputs corresponding to similar inputs should observe a high degree of correlation. For large training datasets, we can then imagine that it might be possible to remove some points from the dataset, thus reducing our computational burden, without having a great impact on our predictions.</p>
+<p>Taking this idea one step further, we can imagine that it might be possible to design some ideal “pseudo-dataset” <span class="math notranslate nohighlight">\(\bar{\mathcal{D}} = \{\mathbf{x}_m, \bar{f}_m\}_{m=1}^{M}\)</span> with <span class="math notranslate nohighlight">\(M &lt;&lt; N\)</span> that captures a similar amount of information as the full dataset. Note that here for our pseudo-dataset we have intentially used <span class="math notranslate nohighlight">\(\bar{f}\)</span> to describe our output values rather than <span class="math notranslate nohighlight">\(\bar{y}\)</span>, as it doesn’t make much sense to add noise to output function values that we’re choosing ourselves.</p>
+<hr class="docutils" />
+<p>Assuming that our pseudo-dataset can take the place of the full dataset, an output <span class="math notranslate nohighlight">\(y\)</span> has the likelihood</p>
+<div class="math notranslate nohighlight">
+\[ p(y \mid \mathbf{x}, \bar{X}, \bar{\mathbf{f}}) = \mathcal{N}(k_{\mathbf{x}}^{T}K_{\bar{X}\bar{X}}^{-1}\bar{\mathbf{f}}, K_{\mathbf{x}\mathbf{x}} - k_{\mathbf{x}}^{T}K_{\bar{X}\bar{X}}^{-1}k_{\mathbf{x}} + \sigma^2),\]</div>
+<p>where <span class="math notranslate nohighlight">\(k_{\mathbf{x}} \in \mathbb{R}^{M}\)</span> is shorthand for a vector with entries <span class="math notranslate nohighlight">\(k(\mathbf{x}, \mathbf{x}_m)\)</span>. Assuming that our full set of test data <span class="math notranslate nohighlight">\(\mathbf{y} = \{y\}_{n=1}^{N}\)</span>, are i.i.d., <span class="math notranslate nohighlight">\(\mathbf{y}\)</span> then has the following likelihood:</p>
+<div class="math notranslate nohighlight" id="equation-likelihood">
+<span class="eqno">(1)<a class="headerlink" href="#equation-likelihood" title="Link to this equation">#</a></span>\[p(\mathbf{y} \mid X, \bar{X}, \bar{\mathbf{f}}) = \prod_{n=1}^{N} p(y_n \mid \mathbf{x}_n, \bar{X}, \bar{\mathbf{f}}) = \mathcal{N}(\mathbf{y} \mid K_{NM}K_{M}^{-1}\bar{\mathbf{f}}, \mathbf{\Lambda} + \sigma^2I),\]</div>
+<p>where <span class="math notranslate nohighlight">\(\mathbf{\Lambda} = \text{diag}(\mathbf{\lambda})\)</span>, and <span class="math notranslate nohighlight">\(\lambda_n = K_{\mathbf{x}_n\mathbf{x}_n} - k_{\mathbf{x}_n}^{T}K_{M}^{-1}k_{\mathbf{x}_n}\)</span>. With our model specified, we must now resolve two issues. First, we neeed to specify some criterion for choosing a “good” pseudo-dataset.</p>
+<p>One way to do so would be to optimize <span class="math notranslate nohighlight">\(\bar{\mathbf{f}}\)</span> and <span class="math notranslate nohighlight">\(\bar{X}\)</span> to maximize the above likelihood. However, by treating <span class="math notranslate nohighlight">\(\bar{\mathbf{f}}\)</span> with some uncertainty we can actually make our lives easier and avoid the need to optimize this quantity altogether. To ensure that the pseudo data outputs model the true dataset well, it’s reasonable to assume that that they follow the same prior as true data points, i.e.,</p>
+<div class="math notranslate nohighlight" id="equation-pseudo-prior">
+<span class="eqno">(2)<a class="headerlink" href="#equation-pseudo-prior" title="Link to this equation">#</a></span>\[p(\bar{\mathbf{f}} \mid \bar{X}) = \mathcal{N}(0, K_{\bar{X}\bar{X}}).\]</div>
+<p>With this assumption, we can then marginalize out <span class="math notranslate nohighlight">\(\bar{\mathbf{f}}\)</span> from Equation <a class="reference internal" href="#equation-likelihood">(1)</a>. I.e., we compute</p>
+<div class="math notranslate nohighlight">
+\[ p(\mathbf{y} \mid X, \bar{X}) = \int p(\mathbf{y} \mid X, \bar{X}, \bar{\mathbf{f}})p(\bar{\mathbf{f}} \mid \bar{X})d\bar{\mathbf{f}}, \]</div>
+<p>From the properties of Gaussians this integral has a closed form and results in</p>
+<div class="math notranslate nohighlight">
+\[ p(\mathbf{y} \mid X, \bar{X}) = \mathcal{N}(\mathbf{y} \mid 0, K_{NM}K_{M}^{-1}K_{MN} + \mathbf{\Lambda} + \sigma^2I).\]</div>
+<p>And so we can find a good set of pseudo-inputs <span class="math notranslate nohighlight">\(\bar{X}\)</span> by maximizing the above expression for the marginal likelihood. Next, we need a way to make predictions on the distribution of unseen points given our observed data. In other words, we need a method for computing <span class="math notranslate nohighlight">\(p(y_* \mid \mathbf{x}_*, X, \bar{X}, \mathbf{y})\)</span>. Of particular note, we can’t simply reuse our result from Equation <a class="reference internal" href="#equation-likelihood">(1)</a>, as that expression depends on the pseudo-outputs <span class="math notranslate nohighlight">\(\bar{\mathbf{f}}\)</span>, which we chose not to learn. Thus, we must instead compute</p>
+<div class="math notranslate nohighlight" id="equation-predictive-dist">
+<span class="eqno">(3)<a class="headerlink" href="#equation-predictive-dist" title="Link to this equation">#</a></span>\[p(y_* \mid \mathbf{x}_*, X, \bar{X}, \mathbf{y})  = \int p(y_* \mid \mathbf{x}_*, X, \bar{X}, \mathbf{y}, \bar{\mathbf{f}})p(\bar{\mathbf{f}} \mid X, \bar{X}, \mathbf{y})d\mathbf{\bar{f}}.\]</div>
+<p>The first term in this integral is essentially Equation <a class="reference internal" href="#equation-likelihood">(1)</a>, and thus is straightforward to compute. To obtain the second term we can apply Bayes rule with Equations <a class="reference internal" href="#equation-likelihood">(1)</a> and <a class="reference internal" href="#equation-pseudo-prior">(2)</a> to obtain:</p>
+<div class="math notranslate nohighlight">
+\[ p(\bar{\mathbf{f}} \mid X, \bar{X}, \mathbf{y}) = \mathcal{N}(\bar{\mathbf{f}} \mid K_{\bar{X}\bar{X}}Q^{-1}K_{\bar{X}X}(\mathbf{\Lambda} + \sigma^2I)\mathbf{y}, K_{\bar{X}\bar{X}}Q^{-1}K_{\bar{X}\bar{X}}),\]</div>
+<p>where <span class="math notranslate nohighlight">\(Q = K_{\bar{X}\bar{X}} + K_{\bar{X}X}(\mathbf{\Lambda} + \sigma^2I)K_{X\bar{X}}\)</span>.</p>
+<p>Plugging this expression into Equation <a class="reference internal" href="#equation-predictive-dist">(3)</a> we have (after some tedious computations leveraging the properties of Gaussians):</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}
+\begin{align}
+p(y_* \mid \mathbf{x}_*, X, \bar{X}, \mathbf{y}) &amp;= \mathcal{N}(y_* \mid \mu_*, \sigma^2_*), \\
+\mu_* &amp;= k_{\mathbf{x}_*}^{T}Q^{-1}K_{\bar{X}X}(\mathbf{\Lambda} + \sigma^2I)^{-1}\mathbf{y}, \\
+\sigma_*^2 &amp;= K_{\mathbf{x}_*\mathbf{x}_*} - k_{\mathbf{x}_*}^{T}(K_{\bar{X}\bar{X}}^{-1} - Q^{-1})k_{\mathbf{x}_*} + \sigma^2
+\end{align}
+\end{split}\]</div>
+<p>Before moving on, let’s briefly consider the cost of computing the above distribution. Calculating <span class="math notranslate nohighlight">\(Q\)</span> requires multiplying a matrix with dimensions <span class="math notranslate nohighlight">\(M \times N\)</span> and a matrix with dimensions <span class="math notranslate nohighlight">\(N \times M\)</span>, and thus this step is of order <span class="math notranslate nohighlight">\(\mathcal{O}(M^2N)\)</span>. As they are both <span class="math notranslate nohighlight">\(M \times M\)</span> matrices, computing the inverses of <span class="math notranslate nohighlight">\(Q\)</span> and <span class="math notranslate nohighlight">\(K_{\bar{X}\bar{X}}\)</span> requires <span class="math notranslate nohighlight">\(\mathcal{O}(M^3)\)</span> steps. Notably, the remaining inverse computation for <span class="math notranslate nohighlight">\(\mathbf{\Lambda} + \sigma^2I\)</span> is trivial, as this matrix is diagonal. As we take <span class="math notranslate nohighlight">\(M &lt;&lt; N\)</span>, our prediction step is thus dominated by the <span class="math notranslate nohighlight">\(\mathcal{O}(M^2N)\)</span> term, which is indeed a major improvement on the  <span class="math notranslate nohighlight">\(\mathcal{O}(N^3)\)</span> computations required for exact GP regression.</p>
 </section>
 
     <script type="text/x-thebe-config">

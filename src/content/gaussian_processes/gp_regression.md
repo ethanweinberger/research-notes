@@ -1,3 +1,14 @@
+---
+jupytext:
+  text_representation:
+    extension: .md
+    format_name: myst
+kernelspec:
+  display_name: Python 3
+  language: python
+  name: python3
+---
+
 # Gaussian Processes 2: Gaussian process regression
 
 In the previous section we introduced stochsatic processes and defined the Gaussian process. In this section we'll demonstrate how Gaussian processes will allow us to solve regression tasks while naturally incorporating estimates of uncertainty.
@@ -6,7 +17,7 @@ In the previous section we introduced stochsatic processes and defined the Gauss
 
 Suppose we're given values of our function $f(\mathbf{x}_i) \in \mathbb{R}$ evaluated  at $n$ input points $\mathbf{x}_i \in \mathbb{R}^{d}$. We'll sometimes refer to this observed data as our _training data_. To simplify our notation, we'll use the matrix $X \in \mathbb{R}^{n \times d}$ to denote matrix of function input values for our training data, and we'll correspondingly use $\mathbf{f} \in \mathbb{R}^{n}$ to represent our training data's function outputs. Now let's assume that $f$ is drawn from a Gaussian process, i.e.,
 
-$$f \sim \mathcal{GP}(\mathbf{0}, k(\mathbf{x}, \mathbf{x}'),$$
+$$f \sim \mathcal{GP}(\mathbf{0}, k(\mathbf{x}, \mathbf{x}'))$$
 
 with the kernel $k$ chosen to reflect some prior belief about how the outputs of our function vary with respect to the input values. Our task now to predict the values of $f$ at a collection of test points $X_*$ for which we don't observe the corresponding outputs $\mathbf{f}_*$. Based on our Gaussian process asssumption, we have
 
@@ -26,12 +37,103 @@ analogously for pairs of training and/or test inputs. From the conditioning prop
 
 $$\mathbf{f_*} \mid X_*, X, \mathbf{f} \sim \mathcal{N}(K(X_*, X)K(X, X)^{-1}\mathbf{f}, K(X_*, X_*) - K(X_*, X)K(X, X)^{-1}K(X, X_*))$$
 
-We can then sample function values $\mathbf{f_*}$ corresponding to our test inputs $X_*$ by sampling from the above distribution.
+We can then sample function values $\mathbf{f_*}$ corresponding to our test inputs $X_*$ by sampling from the above distribution, and this procedure is known as _Gaussian process regression_. We'll make this procedure more concrete by illustrating it on a toy problem. Suppose we have
+data generated from an underlying sine function
+
+```{code-cell} ipython3
+---
+tags: [hide-input]
+mystnb:
+  image:
+    align: center
+---
+import numpy as np
+import matplotlib.pyplot as plt
+
+f_sin = lambda x: (np.sin(x)).flatten()
+
+n1 = 8  # Number of points to condition on (training points)
+n2 = 75  # Number of points in posterior (test points)
+ny = 5  # Number of functions that will be sampled from the posterior
+domain = (-6, 6)
+
+# Sample observations (X1, y1) on the function
+x_train = np.random.uniform(domain[0]+2, domain[1]-2, size=(n1, 1))
+y_train = f_sin(x_train)
+
+# Predict points at uniform spacing to capture function
+x_test = np.linspace(domain[0], domain[1], n2).reshape(-1, 1)
+
+fig, ax = plt.subplots(figsize=(6,4))
+ax.plot(x_test, f_sin(x_test), 'b--', label='$sin(x)$')
+ax.plot(x_train, y_train, 'ko', linewidth=2, label='Observed data')
+ax.legend()
+plt.show()
+```
+
+where the black dots are our observed data points and the dashed blue curve is our full underlying function. We can then apply GP regression to obtain predictions for values at unseen inputs. For a covariance function, we'll use the squared exponential kernel, which assumes that our functions outputs should be similar for input values that are close together.
+
+```{code-cell} ipython3
+---
+tags: [hide-input]
+mystnb:
+  image:
+    align: center
+---
+import scipy
+
+def exponentiated_quadratic_kernel(xa, xb):
+    """Exponentiated quadratic  with σ=1"""
+    # L2 distance (Squared Euclidian)
+    sq_norm = -0.5 * scipy.spatial.distance.cdist(xa, xb, 'sqeuclidean')
+    return np.exp(sq_norm)
+
+# Gaussian process posterior
+def GP(x_train, y_train, x_test, kernel_func):
+    """
+    Calculate the posterior mean and covariance matrix for y2
+    based on the corresponding input X2, the observations (y1, X1), 
+    and the prior kernel function.
+    """
+    K = kernel_func(x_train, x_train)
+    L = np.linalg.cholesky(K)
+    m = np.linalg.solve(L, y_train)
+    alpha = np.linalg.solve(L.T, m)
+
+    # Kernel of observations vs to-predict
+    K_s = kernel_func(x_train, x_test)
+    mu = K_s.T @ alpha
+
+    beta = np.linalg.solve(K, K_s)
+
+    K_ss = kernel_func(x_test, x_test)
+    cov = K_ss - K_s.T @ beta
+
+    return mu, cov
+
+# Compute posterior mean and covariance
+mu_test, cov_test = GP(x_train, y_train, x_test, exponentiated_quadratic_kernel)
+# Compute the standard deviation at the test points to be plotted
+sigma_test = np.sqrt(np.diag(cov_test))
+
+# Draw some samples of the posterior
+y_test = np.random.multivariate_normal(mean=mu_test, cov=cov_test, size=ny)
+
+fig, ax = plt.subplots(figsize=(6,4))
+ax.plot(x_test, f_sin(x_test), 'b--', label='$sin(x)$')
+ax.plot(x_train, y_train, 'ko', linewidth=2, label='Observed data')
+ax.fill_between(x_test.flat, mu_test-2*sigma_test, mu_test+2*sigma_test, color='red', alpha=0.15, label=r'$2*\text{stddev}$')
+ax.plot(x_test, mu_test, 'r-', lw=2, label=r'Posterior mean')
+ax.legend()
+plt.show()
+```
+
+where the solid red line denotes our posterior mean (i.e., the center of our predicted function values at unknown points) and the shaded red area represents how uncertain we are about predictions at individual inputs (as captured by two times the posterior standard deviation). We find that our GP regression procedure fits the underlying function reasonable well, at least for areas of the input space where we have observed data. Moreover, for inputs where our model does not have nearby observed data points and thus fails to make accurate predictions, the posterior distribution has a large degree of uncertainty.
 
 ---
 #### The noisy case
 
-In the previous section we assumed that our training dataset contains the true function values $f(\mathbf{x}_i)$ for each input $\mathbf{x}_i$. In most realistic modeling scenarios, we won't be so lucky to have the true function values. Instead, we might have noisy outputs
+In the previous section we assumed that our training dataset contains the true function values $f(\mathbf{x}_i)$ for each training data input $\mathbf{x}_i$. In most realistic modeling scenarios, we won't be so lucky to have the true function values. Instead, we might have noisy outputs
 
 $$ y_i = f(\mathbf{x}_i) + \varepsilon $$
 
@@ -68,6 +170,69 @@ $$ \mathbf{\mu}_* = K(X_*, X)(K(X, X) + \sigma^2I)^{-1}\mathbf{y} $$
 and
 
 $$ \mathbf{\Sigma}_* = K(X_*, X_*) - K(X_*, X)(K(X, X) + \sigma^2I)^{-1}K(X, X_*).$$
+
+Applying GP regression again with the assumption of noise in the training data, we have
+
+```{code-cell} ipython3
+---
+tags: [hide-input]
+mystnb:
+  image:
+    align: center
+---
+import scipy
+
+def exponentiated_quadratic_kernel(xa, xb):
+    """Exponentiated quadratic  with σ=1"""
+    # L2 distance (Squared Euclidian)
+    sq_norm = -0.5 * scipy.spatial.distance.cdist(xa, xb, 'sqeuclidean')
+    return np.exp(sq_norm)
+
+# Gaussian process posterior
+def GP_noise(x_train, y_train, x_test, sigma_noise, kernel_func):
+    """
+    Calculate the posterior mean and covariance matrix for y2
+    based on the corresponding input X2, the observations (y1, X1), 
+    and the prior kernel function.
+    """
+    num_x_train = x_train.shape[0]
+    K = kernel_func(x_train, x_train) + (sigma_noise**2) * np.eye(num_x_train)
+    L = np.linalg.cholesky(K)
+    m = np.linalg.solve(L, y_train)
+    alpha = np.linalg.solve(L.T, m)
+
+    # Kernel of observations vs to-predict
+    K_s = kernel_func(x_train, x_test)
+    mu = K_s.T @ alpha
+
+    beta = np.linalg.solve(K, K_s)
+
+    K_ss = kernel_func(x_test, x_test)
+    cov = K_ss - K_s.T @ beta
+
+    return mu, cov
+
+# Compute posterior mean and covariance
+sigma_noise = 0.5
+y_train_noisy = y_train + ((sigma_noise ** 2) * np.random.randn(y_train.shape[0]))
+mu_test, cov_test = GP_noise(x_train, y_train_noisy, x_test, sigma_noise, exponentiated_quadratic_kernel)
+# Compute the standard deviation at the test points to be plotted
+sigma_test = np.sqrt(np.diag(cov_test))
+
+# Draw some samples of the posterior
+y_test = np.random.multivariate_normal(mean=mu_test, cov=cov_test, size=ny)
+
+fig, ax = plt.subplots(figsize=(6,4))
+ax.plot(x_test, f_sin(x_test), 'b--', label='$sin(x)$')
+ax.plot(x_train, y_train_noisy, 'ko', linewidth=2, label='Observed data')
+ax.fill_between(x_test.flat, mu_test-2*sigma_test, mu_test+2*sigma_test, color='red', alpha=0.15, label=r'$2*\text{stddev}$')
+ax.plot(x_test, mu_test, 'r-', lw=2, label=r'Posterior mean')
+ax.legend()
+plt.show()
+```
+
+Of note, we can see that the standard deviation of our predictions is no longer zero for our training data. Moreover,
+we can see that our posterior mean no longer necessarily crosses through the training data points.
 
 #### Choosing the kernel parameters
 

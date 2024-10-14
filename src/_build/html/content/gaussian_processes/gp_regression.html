@@ -403,7 +403,7 @@ document.write(`
 <hr class="docutils" />
 <p>Suppose we’re given values of our function <span class="math notranslate nohighlight">\(f(\mathbf{x}_i) \in \mathbb{R}\)</span> evaluated  at <span class="math notranslate nohighlight">\(n\)</span> input points <span class="math notranslate nohighlight">\(\mathbf{x}_i \in \mathbb{R}^{d}\)</span>. We’ll sometimes refer to this observed data as our <em>training data</em>. To simplify our notation, we’ll use the matrix <span class="math notranslate nohighlight">\(X \in \mathbb{R}^{n \times d}\)</span> to denote matrix of function input values for our training data, and we’ll correspondingly use <span class="math notranslate nohighlight">\(\mathbf{f} \in \mathbb{R}^{n}\)</span> to represent our training data’s function outputs. Now let’s assume that <span class="math notranslate nohighlight">\(f\)</span> is drawn from a Gaussian process, i.e.,</p>
 <div class="math notranslate nohighlight">
-\[f \sim \mathcal{GP}(\mathbf{0}, k(\mathbf{x}, \mathbf{x}'),\]</div>
+\[f \sim \mathcal{GP}(\mathbf{0}, k(\mathbf{x}, \mathbf{x}'))\]</div>
 <p>with the kernel <span class="math notranslate nohighlight">\(k\)</span> chosen to reflect some prior belief about how the outputs of our function vary with respect to the input values. Our task now to predict the values of <span class="math notranslate nohighlight">\(f\)</span> at a collection of test points <span class="math notranslate nohighlight">\(X_*\)</span> for which we don’t observe the corresponding outputs <span class="math notranslate nohighlight">\(\mathbf{f}_*\)</span>. Based on our Gaussian process asssumption, we have</p>
 <div class="math notranslate nohighlight">
 \[\begin{split}
@@ -420,11 +420,112 @@ inputs <span class="math notranslate nohighlight">\(\mathbf{x}_i\)</span> and <s
 analogously for pairs of training and/or test inputs. From the conditioning property of Gaussians, we then immediately obtain:</p>
 <div class="math notranslate nohighlight">
 \[\mathbf{f_*} \mid X_*, X, \mathbf{f} \sim \mathcal{N}(K(X_*, X)K(X, X)^{-1}\mathbf{f}, K(X_*, X_*) - K(X_*, X)K(X, X)^{-1}K(X, X_*))\]</div>
-<p>We can then sample function values <span class="math notranslate nohighlight">\(\mathbf{f_*}\)</span> corresponding to our test inputs <span class="math notranslate nohighlight">\(X_*\)</span> by sampling from the above distribution.</p>
+<p>We can then sample function values <span class="math notranslate nohighlight">\(\mathbf{f_*}\)</span> corresponding to our test inputs <span class="math notranslate nohighlight">\(X_*\)</span> by sampling from the above distribution, and this procedure is known as <em>Gaussian process regression</em>. We’ll make this procedure more concrete by illustrating it on a toy problem. Suppose we have
+data generated from an underlying sine function</p>
+<div class="cell tag_hide-input docutils container">
+<details class="hide above-input">
+<summary aria-label="Toggle hidden content">
+<span class="collapsed">Show code cell source</span>
+<span class="expanded">Hide code cell source</span>
+</summary>
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+
+<span class="n">f_sin</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">x</span><span class="p">))</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+
+<span class="n">n1</span> <span class="o">=</span> <span class="mi">8</span>  <span class="c1"># Number of points to condition on (training points)</span>
+<span class="n">n2</span> <span class="o">=</span> <span class="mi">75</span>  <span class="c1"># Number of points in posterior (test points)</span>
+<span class="n">ny</span> <span class="o">=</span> <span class="mi">5</span>  <span class="c1"># Number of functions that will be sampled from the posterior</span>
+<span class="n">domain</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="mi">6</span><span class="p">,</span> <span class="mi">6</span><span class="p">)</span>
+
+<span class="c1"># Sample observations (X1, y1) on the function</span>
+<span class="n">x_train</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="n">domain</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">+</span><span class="mi">2</span><span class="p">,</span> <span class="n">domain</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">n1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+<span class="n">y_train</span> <span class="o">=</span> <span class="n">f_sin</span><span class="p">(</span><span class="n">x_train</span><span class="p">)</span>
+
+<span class="c1"># Predict points at uniform spacing to capture function</span>
+<span class="n">x_test</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">domain</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">domain</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">n2</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+<span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span><span class="mi">4</span><span class="p">))</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x_test</span><span class="p">,</span> <span class="n">f_sin</span><span class="p">(</span><span class="n">x_test</span><span class="p">),</span> <span class="s1">&#39;b--&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;$sin(x)$&#39;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">,</span> <span class="s1">&#39;ko&#39;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Observed data&#39;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+</details>
+<div class="cell_output docutils container">
+<img alt="../../_images/66a24bfa5ce65787b1c02d6bb677f5e7788021071b347563bc09e95103c2f000.png" class="align-center" src="../../_images/66a24bfa5ce65787b1c02d6bb677f5e7788021071b347563bc09e95103c2f000.png" />
+</div>
+</div>
+<p>where the black dots are our observed data points and the dashed blue curve is our full underlying function. We can then apply GP regression to obtain predictions for values at unseen inputs. For a covariance function, we’ll use the squared exponential kernel, which assumes that our functions outputs should be similar for input values that are close together.</p>
+<div class="cell tag_hide-input docutils container">
+<details class="hide above-input">
+<summary aria-label="Toggle hidden content">
+<span class="collapsed">Show code cell source</span>
+<span class="expanded">Hide code cell source</span>
+</summary>
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">scipy</span>
+
+<span class="k">def</span> <span class="nf">exponentiated_quadratic_kernel</span><span class="p">(</span><span class="n">xa</span><span class="p">,</span> <span class="n">xb</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Exponentiated quadratic  with σ=1&quot;&quot;&quot;</span>
+    <span class="c1"># L2 distance (Squared Euclidian)</span>
+    <span class="n">sq_norm</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">scipy</span><span class="o">.</span><span class="n">spatial</span><span class="o">.</span><span class="n">distance</span><span class="o">.</span><span class="n">cdist</span><span class="p">(</span><span class="n">xa</span><span class="p">,</span> <span class="n">xb</span><span class="p">,</span> <span class="s1">&#39;sqeuclidean&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">sq_norm</span><span class="p">)</span>
+
+<span class="c1"># Gaussian process posterior</span>
+<span class="k">def</span> <span class="nf">GP</span><span class="p">(</span><span class="n">x_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">,</span> <span class="n">x_test</span><span class="p">,</span> <span class="n">kernel_func</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Calculate the posterior mean and covariance matrix for y2</span>
+<span class="sd">    based on the corresponding input X2, the observations (y1, X1), </span>
+<span class="sd">    and the prior kernel function.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">K</span> <span class="o">=</span> <span class="n">kernel_func</span><span class="p">(</span><span class="n">x_train</span><span class="p">,</span> <span class="n">x_train</span><span class="p">)</span>
+    <span class="n">L</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">cholesky</span><span class="p">(</span><span class="n">K</span><span class="p">)</span>
+    <span class="n">m</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">L</span><span class="p">,</span> <span class="n">y_train</span><span class="p">)</span>
+    <span class="n">alpha</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">L</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">m</span><span class="p">)</span>
+
+    <span class="c1"># Kernel of observations vs to-predict</span>
+    <span class="n">K_s</span> <span class="o">=</span> <span class="n">kernel_func</span><span class="p">(</span><span class="n">x_train</span><span class="p">,</span> <span class="n">x_test</span><span class="p">)</span>
+    <span class="n">mu</span> <span class="o">=</span> <span class="n">K_s</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">alpha</span>
+
+    <span class="n">beta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">K</span><span class="p">,</span> <span class="n">K_s</span><span class="p">)</span>
+
+    <span class="n">K_ss</span> <span class="o">=</span> <span class="n">kernel_func</span><span class="p">(</span><span class="n">x_test</span><span class="p">,</span> <span class="n">x_test</span><span class="p">)</span>
+    <span class="n">cov</span> <span class="o">=</span> <span class="n">K_ss</span> <span class="o">-</span> <span class="n">K_s</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">beta</span>
+
+    <span class="k">return</span> <span class="n">mu</span><span class="p">,</span> <span class="n">cov</span>
+
+<span class="c1"># Compute posterior mean and covariance</span>
+<span class="n">mu_test</span><span class="p">,</span> <span class="n">cov_test</span> <span class="o">=</span> <span class="n">GP</span><span class="p">(</span><span class="n">x_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">,</span> <span class="n">x_test</span><span class="p">,</span> <span class="n">exponentiated_quadratic_kernel</span><span class="p">)</span>
+<span class="c1"># Compute the standard deviation at the test points to be plotted</span>
+<span class="n">sigma_test</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">cov_test</span><span class="p">))</span>
+
+<span class="c1"># Draw some samples of the posterior</span>
+<span class="n">y_test</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">multivariate_normal</span><span class="p">(</span><span class="n">mean</span><span class="o">=</span><span class="n">mu_test</span><span class="p">,</span> <span class="n">cov</span><span class="o">=</span><span class="n">cov_test</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">ny</span><span class="p">)</span>
+
+<span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span><span class="mi">4</span><span class="p">))</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x_test</span><span class="p">,</span> <span class="n">f_sin</span><span class="p">(</span><span class="n">x_test</span><span class="p">),</span> <span class="s1">&#39;b--&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;$sin(x)$&#39;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">,</span> <span class="s1">&#39;ko&#39;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Observed data&#39;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">fill_between</span><span class="p">(</span><span class="n">x_test</span><span class="o">.</span><span class="n">flat</span><span class="p">,</span> <span class="n">mu_test</span><span class="o">-</span><span class="mi">2</span><span class="o">*</span><span class="n">sigma_test</span><span class="p">,</span> <span class="n">mu_test</span><span class="o">+</span><span class="mi">2</span><span class="o">*</span><span class="n">sigma_test</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;red&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.15</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="sa">r</span><span class="s1">&#39;$2*\text</span><span class="si">{stddev}</span><span class="s1">$&#39;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x_test</span><span class="p">,</span> <span class="n">mu_test</span><span class="p">,</span> <span class="s1">&#39;r-&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="sa">r</span><span class="s1">&#39;Posterior mean&#39;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+</details>
+<div class="cell_output docutils container">
+<img alt="../../_images/2716f57071dcc4e332e4a868ac62e1c5a6c57bc8e37dd8b8c1c0cb9eef515202.png" class="align-center" src="../../_images/2716f57071dcc4e332e4a868ac62e1c5a6c57bc8e37dd8b8c1c0cb9eef515202.png" />
+</div>
+</div>
+<p>where the solid red line denotes our posterior mean (i.e., the center of our predicted function values at unknown points) and the shaded red area represents how uncertain we are about predictions at individual inputs (as captured by two times the posterior standard deviation). We find that our GP regression procedure fits the underlying function reasonable well, at least for areas of the input space where we have observed data. Moreover, for inputs where our model does not have nearby observed data points and thus fails to make accurate predictions, the posterior distribution has a large degree of uncertainty.</p>
 <hr class="docutils" />
 <section id="the-noisy-case">
 <h2>The noisy case<a class="headerlink" href="#the-noisy-case" title="Link to this heading">#</a></h2>
-<p>In the previous section we assumed that our training dataset contains the true function values <span class="math notranslate nohighlight">\(f(\mathbf{x}_i)\)</span> for each input <span class="math notranslate nohighlight">\(\mathbf{x}_i\)</span>. In most realistic modeling scenarios, we won’t be so lucky to have the true function values. Instead, we might have noisy outputs</p>
+<p>In the previous section we assumed that our training dataset contains the true function values <span class="math notranslate nohighlight">\(f(\mathbf{x}_i)\)</span> for each training data input <span class="math notranslate nohighlight">\(\mathbf{x}_i\)</span>. In most realistic modeling scenarios, we won’t be so lucky to have the true function values. Instead, we might have noisy outputs</p>
 <div class="math notranslate nohighlight">
 \[ y_i = f(\mathbf{x}_i) + \varepsilon \]</div>
 <p>where our noise <span class="math notranslate nohighlight">\(\varepsilon \sim \mathcal{N}(0, \sigma^2)\)</span>. With this assumption, the covariance between any two evaluations of our <span class="math notranslate nohighlight">\(f\)</span> at points <span class="math notranslate nohighlight">\(\mathbf{x}_p\)</span> and <span class="math notranslate nohighlight">\(\mathbf{x}_q\)</span> becomes</p>
@@ -455,6 +556,73 @@ from the value of our function inputs. Letting <span class="math notranslate noh
 <p>and</p>
 <div class="math notranslate nohighlight">
 \[ \mathbf{\Sigma}_* = K(X_*, X_*) - K(X_*, X)(K(X, X) + \sigma^2I)^{-1}K(X, X_*).\]</div>
+<p>Applying GP regression again with the assumption of noise in the training data, we have</p>
+<div class="cell tag_hide-input docutils container">
+<details class="hide above-input">
+<summary aria-label="Toggle hidden content">
+<span class="collapsed">Show code cell source</span>
+<span class="expanded">Hide code cell source</span>
+</summary>
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">scipy</span>
+
+<span class="k">def</span> <span class="nf">exponentiated_quadratic_kernel</span><span class="p">(</span><span class="n">xa</span><span class="p">,</span> <span class="n">xb</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Exponentiated quadratic  with σ=1&quot;&quot;&quot;</span>
+    <span class="c1"># L2 distance (Squared Euclidian)</span>
+    <span class="n">sq_norm</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">scipy</span><span class="o">.</span><span class="n">spatial</span><span class="o">.</span><span class="n">distance</span><span class="o">.</span><span class="n">cdist</span><span class="p">(</span><span class="n">xa</span><span class="p">,</span> <span class="n">xb</span><span class="p">,</span> <span class="s1">&#39;sqeuclidean&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">sq_norm</span><span class="p">)</span>
+
+<span class="c1"># Gaussian process posterior</span>
+<span class="k">def</span> <span class="nf">GP_noise</span><span class="p">(</span><span class="n">x_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">,</span> <span class="n">x_test</span><span class="p">,</span> <span class="n">sigma_noise</span><span class="p">,</span> <span class="n">kernel_func</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Calculate the posterior mean and covariance matrix for y2</span>
+<span class="sd">    based on the corresponding input X2, the observations (y1, X1), </span>
+<span class="sd">    and the prior kernel function.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">num_x_train</span> <span class="o">=</span> <span class="n">x_train</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">K</span> <span class="o">=</span> <span class="n">kernel_func</span><span class="p">(</span><span class="n">x_train</span><span class="p">,</span> <span class="n">x_train</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">sigma_noise</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">num_x_train</span><span class="p">)</span>
+    <span class="n">L</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">cholesky</span><span class="p">(</span><span class="n">K</span><span class="p">)</span>
+    <span class="n">m</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">L</span><span class="p">,</span> <span class="n">y_train</span><span class="p">)</span>
+    <span class="n">alpha</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">L</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">m</span><span class="p">)</span>
+
+    <span class="c1"># Kernel of observations vs to-predict</span>
+    <span class="n">K_s</span> <span class="o">=</span> <span class="n">kernel_func</span><span class="p">(</span><span class="n">x_train</span><span class="p">,</span> <span class="n">x_test</span><span class="p">)</span>
+    <span class="n">mu</span> <span class="o">=</span> <span class="n">K_s</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">alpha</span>
+
+    <span class="n">beta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">K</span><span class="p">,</span> <span class="n">K_s</span><span class="p">)</span>
+
+    <span class="n">K_ss</span> <span class="o">=</span> <span class="n">kernel_func</span><span class="p">(</span><span class="n">x_test</span><span class="p">,</span> <span class="n">x_test</span><span class="p">)</span>
+    <span class="n">cov</span> <span class="o">=</span> <span class="n">K_ss</span> <span class="o">-</span> <span class="n">K_s</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">beta</span>
+
+    <span class="k">return</span> <span class="n">mu</span><span class="p">,</span> <span class="n">cov</span>
+
+<span class="c1"># Compute posterior mean and covariance</span>
+<span class="n">sigma_noise</span> <span class="o">=</span> <span class="mf">0.5</span>
+<span class="n">y_train_noisy</span> <span class="o">=</span> <span class="n">y_train</span> <span class="o">+</span> <span class="p">((</span><span class="n">sigma_noise</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">y_train</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+<span class="n">mu_test</span><span class="p">,</span> <span class="n">cov_test</span> <span class="o">=</span> <span class="n">GP_noise</span><span class="p">(</span><span class="n">x_train</span><span class="p">,</span> <span class="n">y_train_noisy</span><span class="p">,</span> <span class="n">x_test</span><span class="p">,</span> <span class="n">sigma_noise</span><span class="p">,</span> <span class="n">exponentiated_quadratic_kernel</span><span class="p">)</span>
+<span class="c1"># Compute the standard deviation at the test points to be plotted</span>
+<span class="n">sigma_test</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">cov_test</span><span class="p">))</span>
+
+<span class="c1"># Draw some samples of the posterior</span>
+<span class="n">y_test</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">multivariate_normal</span><span class="p">(</span><span class="n">mean</span><span class="o">=</span><span class="n">mu_test</span><span class="p">,</span> <span class="n">cov</span><span class="o">=</span><span class="n">cov_test</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">ny</span><span class="p">)</span>
+
+<span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span><span class="mi">4</span><span class="p">))</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x_test</span><span class="p">,</span> <span class="n">f_sin</span><span class="p">(</span><span class="n">x_test</span><span class="p">),</span> <span class="s1">&#39;b--&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;$sin(x)$&#39;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x_train</span><span class="p">,</span> <span class="n">y_train_noisy</span><span class="p">,</span> <span class="s1">&#39;ko&#39;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Observed data&#39;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">fill_between</span><span class="p">(</span><span class="n">x_test</span><span class="o">.</span><span class="n">flat</span><span class="p">,</span> <span class="n">mu_test</span><span class="o">-</span><span class="mi">2</span><span class="o">*</span><span class="n">sigma_test</span><span class="p">,</span> <span class="n">mu_test</span><span class="o">+</span><span class="mi">2</span><span class="o">*</span><span class="n">sigma_test</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;red&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.15</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="sa">r</span><span class="s1">&#39;$2*\text</span><span class="si">{stddev}</span><span class="s1">$&#39;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x_test</span><span class="p">,</span> <span class="n">mu_test</span><span class="p">,</span> <span class="s1">&#39;r-&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="sa">r</span><span class="s1">&#39;Posterior mean&#39;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+</details>
+<div class="cell_output docutils container">
+<img alt="../../_images/bf571196413b9ce16111fdff509218844e016a0b255a9a26985ef5e191bbd0a4.png" class="align-center" src="../../_images/bf571196413b9ce16111fdff509218844e016a0b255a9a26985ef5e191bbd0a4.png" />
+</div>
+</div>
+<p>Of note, we can see that the standard deviation of our predictions is no longer zero for our training data. Moreover,
+we can see that our posterior mean no longer necessarily crosses through the training data points.</p>
 </section>
 <section id="choosing-the-kernel-parameters">
 <h2>Choosing the kernel parameters<a class="headerlink" href="#choosing-the-kernel-parameters" title="Link to this heading">#</a></h2>
