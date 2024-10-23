@@ -9,11 +9,21 @@ kernelspec:
   name: python3
 ---
 
+```{math}
+
+\newcommand\x{\mathbf{x}}
+\newcommand\k{\mathbf{k}}
+\newcommand\f{\mathbf{f}}
+\newcommand\y{\mathbf{y}}
+\newcommand\v{\mathbf{v}}
+```
+
 # Gaussian Processes 2: Gaussian process regression
 
 In the previous section we introduced stochsatic processes and defined the Gaussian process. In this section we'll demonstrate how Gaussian processes will allow us to solve regression tasks while naturally incorporating estimates of uncertainty.
 
----
+
+## The noise-free case
 
 Suppose we're given values of our function $f(\mathbf{x}_i) \in \mathbb{R}$ evaluated  at $n$ input points $\mathbf{x}_i \in \mathbb{R}^{d}$. We'll sometimes refer to this observed data as our _training data_. To simplify our notation, we'll use the matrix $X \in \mathbb{R}^{n \times d}$ to denote matrix of function input values for our training data, and we'll correspondingly use $\mathbf{f} \in \mathbb{R}^{n}$ to represent our training data's function outputs. Now let's assume that $f$ is drawn from a Gaussian process, i.e.,
 
@@ -35,9 +45,30 @@ where $K(X,X)$ denotes the $n \times n$ matrix where the $(i, j)$'th entry corre
 inputs $\mathbf{x}_i$ and $\mathbf{x}_j$ (i.e., $k(\mathbf{x}_i, \mathbf{x}_j)$). We define $K(X, X_*)$, $K(X_*, X)$, and $K(X_*, X_*)$ 
 analogously for pairs of training and/or test inputs. From the conditioning property of Gaussians, we then immediately obtain:
 
-$$\mathbf{f_*} \mid X_*, X, \mathbf{f} \sim \mathcal{N}(K(X_*, X)K(X, X)^{-1}\mathbf{f}, K(X_*, X_*) - K(X_*, X)K(X, X)^{-1}K(X, X_*))$$
+```{math}
+:label: gp_posterior
+\mathbf{f_*} \mid X_*, X, \mathbf{f} \sim \mathcal{N}(K(X_*, X)K(X, X)^{-1}\mathbf{f}, K(X_*, X_*) - K(X_*, X)K(X, X)^{-1}K(X, X_*))
+```
 
-We can then sample function values $\mathbf{f_*}$ corresponding to our test inputs $X_*$ by sampling from the above distribution, and this procedure is known as _Gaussian process regression_. We'll make this procedure more concrete by illustrating it on a toy problem. Suppose we have
+We can then sample function values $\mathbf{f_*}$ corresponding to our test inputs $X_*$ by sampling from the above distribution, and this procedure is known as _Gaussian process regression_.
+
+The notation in Equation {eq}`gp_posterior` can quickly get cumbersome. To simplify things a bit, define $K = K(X, X)$, $K_{*} = K(X, X_*)$, and $K_{**} = K(X_*, X_*)$. We may then rewrite Equation {eq}`gp_posterior` as
+
+```{math}
+:label: gp_posterior_cleaner
+\mathbf{f_*} \mid X_*, X, \mathbf{f} \sim \mathcal{N}(K_{*}^{T}K^{-1}\mathbf{f}, K_{**} - K_{*}^{T}K^{-1}K_{*}).
+```
+
+To further simplify things, when making predictions for a single test input $\x_*$ we define $\k_*$ as the vector of covariances between the test point and training points. For predictions at a single test input we then can rewrite Equation {eq}`gp_posterior_cleaner` as
+
+```{math}
+:label: gp_posterior_single_point
+\mathbf{f_*} \mid \x_*, X, \mathbf{f} \sim \mathcal{N}(\k_*^{T}K^{-1}\mathbf{f}, k(\x_*, \x_*) - \k_*^{T}K^{-1}\k_{*}).
+```
+
+## Implementation
+
+We'll make this procedure more concrete by illustrating it on a toy problem. Suppose we have
 data generated from an underlying sine function
 
 ```{code-cell} ipython3
@@ -49,106 +80,120 @@ mystnb:
 ---
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 
-f_sin = lambda x: (np.sin(x)).flatten()
+# Noise free training data
+np.random.seed(42)
+n_train_points = 8
+n_test_points = 100
 
-n1 = 8  # Number of points to condition on (training points)
-n2 = 75  # Number of points in posterior (test points)
-ny = 5  # Number of functions that will be sampled from the posterior
 domain = (-6, 6)
+x_test = np.linspace(domain[0], domain[1], 100).reshape(-1, 1)
+y_test = np.sin(x_test)
 
-# Sample observations (X1, y1) on the function
-x_train = np.random.uniform(domain[0]+2, domain[1]-2, size=(n1, 1))
-y_train = f_sin(x_train)
+x_train = np.random.uniform(low=domain[0] + 2, high=domain[1] - 2, size=(n_train_points, 1))
+y_train = np.sin(x_train)
 
-# Predict points at uniform spacing to capture function
-x_test = np.linspace(domain[0], domain[1], n2).reshape(-1, 1)
+fig, ax = plt.subplots(figsize=(6.5, 4))
 
-fig, ax = plt.subplots(figsize=(6,4))
-ax.plot(x_test, f_sin(x_test), 'b--', label='$sin(x)$')
+ax.plot(x_test, y_test, '--', label="True function",)
 ax.plot(x_train, y_train, 'ko', linewidth=2, label='Observed data')
-ax.legend()
-plt.show()
+ax.legend(loc='upper right')
+
+sns.despine()
 ```
 
-where the black dots are our observed data points and the dashed blue curve is our full underlying function. We can then apply GP regression to obtain predictions for values at unseen inputs. For a covariance function, we'll use the squared exponential kernel, which assumes that our functions outputs should be similar for input values that are close together.
+where the black dots are our observed data points and the dashed blue curve is our full underlying function. We'll now apply GP regression to obtain predictions for values at unseen inputs.
+
+For now, for our covariance function we'll use the squared exponential kernel
+
+$$ k(\x_i, \x_j) = \sigma^2 \exp \left(-\frac{1}{2\ell^2} (\x_i - \x_j)^{T}(\x_i - \x_j)\right) $$
+
+Here the length parameter $\ell$ controls the smoothness of the function and $\sigma$ controls the vertical variation. For this example we'll fix $\sigma$ and $\ell$ at 1.0; we discuss how to choose these parameters later.
+
+```{code-cell} ipython3
+def kernel(X1, X2, l=1.0, sigma_f=1.0):
+    """
+    Isotropic squared exponential kernel.
+    
+    Args:
+        X1: Array of m points (m x d).
+        X2: Array of n points (n x d).
+
+    Returns:
+        (m x n) matrix.
+    """
+    sqdist = np.sum(X1**2, 1).reshape(-1, 1) + np.sum(X2**2, 1) - 2 * np.dot(X1, X2.T)
+    return sigma_f**2 * np.exp(-0.5 / l**2 * sqdist)
+```
+
+We can then solve for our posterior's mean and covariance parameters
+
+
+```{code-cell} ipython3
+from jax.numpy.linalg import inv
+l = 1.0
+sigma_f = 1.0
+jitter = 1e-5 # To help with numerical stability issues
+
+K = kernel(x_train, x_train, l, sigma_f) + jitter * np.eye(len(x_train))
+K_s = kernel(x_train, x_test, l, sigma_f)
+K_ss = kernel(x_test, x_test, l, sigma_f)
+K_inv = inv(K)
+
+# Equation (7)
+mu_s = K_s.T.dot(K_inv).dot(y_train).reshape(-1)
+
+# Equation (8)
+cov_s = K_ss - K_s.T.dot(K_inv).dot(K_s)
+```
+
+And we then plot the results
 
 ```{code-cell} ipython3
 ---
-tags: [hide-input]
 mystnb:
   image:
     align: center
 ---
-import scipy
+fig, ax = plt.subplots()
+uncertainty = 1.96 * np.sqrt(np.diag(cov_s))
 
-def exponentiated_quadratic_kernel(xa, xb):
-    """Exponentiated quadratic  with σ=1"""
-    # L2 distance (Squared Euclidian)
-    sq_norm = -0.5 * scipy.spatial.distance.cdist(xa, xb, 'sqeuclidean')
-    return np.exp(sq_norm)
-
-# Gaussian process posterior
-def GP(x_train, y_train, x_test, kernel_func):
-    """
-    Calculate the posterior mean and covariance matrix for y2
-    based on the corresponding input X2, the observations (y1, X1), 
-    and the prior kernel function.
-    """
-    K = kernel_func(x_train, x_train)
-    L = np.linalg.cholesky(K)
-    m = np.linalg.solve(L, y_train)
-    alpha = np.linalg.solve(L.T, m)
-
-    # Kernel of observations vs to-predict
-    K_s = kernel_func(x_train, x_test)
-    mu = K_s.T @ alpha
-
-    beta = np.linalg.solve(K, K_s)
-
-    K_ss = kernel_func(x_test, x_test)
-    cov = K_ss - K_s.T @ beta
-
-    return mu, cov
-
-# Compute posterior mean and covariance
-mu_test, cov_test = GP(x_train, y_train, x_test, exponentiated_quadratic_kernel)
-# Compute the standard deviation at the test points to be plotted
-sigma_test = np.sqrt(np.diag(cov_test))
-
-# Draw some samples of the posterior
-y_test = np.random.multivariate_normal(mean=mu_test, cov=cov_test, size=ny)
-
-fig, ax = plt.subplots(figsize=(6,4))
-ax.plot(x_test, f_sin(x_test), 'b--', label='$sin(x)$')
-ax.plot(x_train, y_train, 'ko', linewidth=2, label='Observed data')
-ax.fill_between(x_test.flat, mu_test-2*sigma_test, mu_test+2*sigma_test, color='red', alpha=0.15, label=r'$2*\text{stddev}$')
-ax.plot(x_test, mu_test, 'r-', lw=2, label=r'Posterior mean')
-ax.legend()
+ax.plot(x_test, y_test, '--', label='True function')
+ax.plot(x_test, mu_s, label='Posterior mean')
+ax.fill_between(
+    x_test.reshape(-1),
+    (mu_s + uncertainty).reshape(-1),
+    (mu_s - uncertainty).reshape(-1),
+    alpha=0.1,
+    color='grey'
+)
+ax.plot(x_train, y_train, 'rx', label='Observed data')
+ax.legend(loc='upper right')
+sns.despine()
 plt.show()
 ```
 
-where the solid red line denotes our posterior mean (i.e., the center of our predicted function values at unknown points) and the shaded red area represents how uncertain we are about predictions at individual inputs (as captured by two times the posterior standard deviation). We find that our GP regression procedure fits the underlying function reasonable well, at least for areas of the input space where we have observed data. Moreover, for inputs where our model does not have nearby observed data points and thus fails to make accurate predictions, the posterior distribution has a large degree of uncertainty.
+where the solid orange line denotes our posterior mean (i.e., the center of our predicted function values at unknown points) and the shaded area represents how uncertain we are about predictions at individual inputs (as captured by two times the posterior standard deviation). We find that our GP regression procedure fits the underlying function reasonably well for areas of the input space where we have observed data. Moreover, for inputs where our model does not have nearby observed data points and thus fails to make accurate predictions, the posterior distribution has a large degree of uncertainty.
 
----
-#### The noisy case
+## The noisy case
 
 In the previous section we assumed that our training dataset contains the true function values $f(\mathbf{x}_i)$ for each training data input $\mathbf{x}_i$. In most realistic modeling scenarios, we won't be so lucky to have the true function values. Instead, we might have noisy outputs
 
 $$ y_i = f(\mathbf{x}_i) + \varepsilon $$
 
-where our noise $\varepsilon \sim \mathcal{N}(0, \sigma^2)$. With this assumption, the covariance between any two evaluations of our $f$ at points $\mathbf{x}_p$ and $\mathbf{x}_q$ becomes
+where our noise $\varepsilon \sim \mathcal{N}(0, \sigma^2)$. With this assumption, the covariance between any two evaluations of our $f$ at points $\mathbf{x}_i$ and $\mathbf{x}_j$ becomes
 
-$$ cov(\mathbf{x}_p, \mathbf{x}_q) = k(\mathbf{x}_p, \mathbf{x}_q) + \delta_{pq}\sigma^2 $$
+$$ cov(\mathbf{x}_i, \mathbf{x}_j) = k(\mathbf{x}_i, \mathbf{x}_j) + \delta_{ij}\sigma^2 $$
 
-where $\delta_{pq}$ is one if $p = q$ and zero otherwise; this reflects our assumption that the noise $\varepsilon$ is independent
-from the value of our function inputs. Letting $\mathbf{y} \in \mathbb{R}^{n}$ denote our noisy outputs $\{y_i\}$ collected into a single vector, we can equivalently write
+where $\delta_{ij}$ is one if $i = j$ and zero otherwise; this reflects our assumption that the noise $\varepsilon$ is independent from the value of our function inputs. Letting $\mathbf{y} \in \mathbb{R}^{n}$ denote our noisy outputs $\{y_i\}$ collected into a single vector, we can equivalently write
 
-$$ cov(\mathbf{y}) = K(X, X) + \sigma^2I $$
+$$ cov(\mathbf{y}) = K + \sigma^2I $$
 
 With this additional noise term, our joint distribution for training and test point outputs then becomes
 
-$$
+```{math}
+:label: joint_noisy
 \begin{eqnarray}
 \left[
     \begin{array}{l}
@@ -156,22 +201,43 @@ $$
     \ \mathbf{f_*}
     \end{array}
  \right]
-\end{eqnarray} \sim \mathcal{N}\left(\mathbf{0}, \begin{bmatrix} K(X, X) + \sigma^2I & K(X, X_*) \\ K(X_*, X) & K(X_*, X_*)\end{bmatrix}\right)
-$$
+\end{eqnarray} \sim \mathcal{N}\left(\mathbf{0}, \begin{bmatrix} K + \sigma^2I & K_{*} \\ K_{*}^{T} & K_{**} \end{bmatrix}\right)
+```
 
-Just as before, we can apply the conditioning property of multivariate normal distributions to obtain
+Just as before, we can apply the conditioning property of multivariate normal distributions to Equation {eq}`joint_noisy` to obtain
 
-$$ \mathbf{f_*} \mid X_*, X, \mathbf{y} \sim \mathcal{N}(\mathbf{\mu}_*, \mathbf{\Sigma}_*),$$
+$$ \mathbf{f_*} \mid X_*, X, \mathbf{y} \sim \mathcal{N}(\bar{\mathbf{\f}}_*, \mathbf{\Sigma}_*),$$
 
 where 
 
-$$ \mathbf{\mu}_* = K(X_*, X)(K(X, X) + \sigma^2I)^{-1}\mathbf{y} $$
+```{math}
+:label: posterior_mean_noisy
+\bar{\mathbf{f}}_* = K_{*}^{T}(K + \sigma^2I)^{-1}\mathbf{y}
+```
 
-and
+```{math}
+:label: posterior_variance_noisy
+\mathbf{\Sigma}_* = K_{**} - K_{*}^{T}(K + \sigma^2I)^{-1}K_{*}.
+```
 
-$$ \mathbf{\Sigma}_* = K(X_*, X_*) - K(X_*, X)(K(X, X) + \sigma^2I)^{-1}K(X, X_*).$$
+For a single test point $\x_*$ we can simplify Equation {eq}`posterior_mean_noisy` as
 
-Applying GP regression again with the assumption of noise in the training data, we have
+```{math}
+:label: posterior_mean_noisy_single_point
+\bar{f}_* = \k_{*}^{T}(K + \sigma^2I)^{-1}\mathbf{y}
+```
+
+and {eq}`posterior_variance_noisy` as
+
+```{math}
+:label: posterior_variance_noisy_single_point
+\sigma_* = \k(\x_*, \x_*) - \k_{*}^{T}(K + \sigma^2I)^{-1}\k_{*}.
+```
+
+
+## Implementation (noisy case)
+
+Using our previous example, we generate data with noise
 
 ```{code-cell} ipython3
 ---
@@ -180,82 +246,206 @@ mystnb:
   image:
     align: center
 ---
-import scipy
+noise = 0.1
+domain = (-6, 6)
+x_test = np.linspace(domain[0], domain[1], 100).reshape(-1, 1)
+y_test = np.sin(x_test)
 
-def exponentiated_quadratic_kernel(xa, xb):
-    """Exponentiated quadratic  with σ=1"""
-    # L2 distance (Squared Euclidian)
-    sq_norm = -0.5 * scipy.spatial.distance.cdist(xa, xb, 'sqeuclidean')
-    return np.exp(sq_norm)
+y_train = np.sin(x_train) + 0.5*np.random.normal(size=(n_train_points, 1))
 
-# Gaussian process posterior
-def GP_noise(x_train, y_train, x_test, sigma_noise, kernel_func):
-    """
-    Calculate the posterior mean and covariance matrix for y2
-    based on the corresponding input X2, the observations (y1, X1), 
-    and the prior kernel function.
-    """
-    num_x_train = x_train.shape[0]
-    K = kernel_func(x_train, x_train) + (sigma_noise**2) * np.eye(num_x_train)
-    L = np.linalg.cholesky(K)
-    m = np.linalg.solve(L, y_train)
-    alpha = np.linalg.solve(L.T, m)
+fig, ax = plt.subplots(figsize=(6.5, 4))
 
-    # Kernel of observations vs to-predict
-    K_s = kernel_func(x_train, x_test)
-    mu = K_s.T @ alpha
+ax.plot(x_test, y_test, '--', label="True function",)
+ax.plot(x_train, y_train, 'ko', linewidth=2, label='Observed data')
+ax.legend(loc='upper right')
 
-    beta = np.linalg.solve(K, K_s)
+sns.despine()
+```
 
-    K_ss = kernel_func(x_test, x_test)
-    cov = K_ss - K_s.T @ beta
+Applying Equations {eq}`posterior_mean_noisy` and {eq}`posterior_variance_noisy` we have
 
-    return mu, cov
+```{code-cell} ipython3
+---
+mystnb:
+  image:
+    align: center
+---
+l = 1.0
+sigma_f = 1.0
 
-# Compute posterior mean and covariance
-sigma_noise = 0.5
-y_train_noisy = y_train + ((sigma_noise ** 2) * np.random.randn(y_train.shape[0]))
-mu_test, cov_test = GP_noise(x_train, y_train_noisy, x_test, sigma_noise, exponentiated_quadratic_kernel)
-# Compute the standard deviation at the test points to be plotted
-sigma_test = np.sqrt(np.diag(cov_test))
+K = kernel(x_train, x_train, l, sigma_f) + noise * np.eye(len(x_train))
+K_s = kernel(x_train, x_test, l, sigma_f)
+K_ss = kernel(x_test, x_test, l, sigma_f)
+K_inv = inv(K)
 
-# Draw some samples of the posterior
-y_test = np.random.multivariate_normal(mean=mu_test, cov=cov_test, size=ny)
+mu_s = K_s.T.dot(K_inv).dot(y_train).reshape(-1)
+cov_s = K_ss - K_s.T.dot(K_inv).dot(K_s)
+```
 
-fig, ax = plt.subplots(figsize=(6,4))
-ax.plot(x_test, f_sin(x_test), 'b--', label='$sin(x)$')
-ax.plot(x_train, y_train_noisy, 'ko', linewidth=2, label='Observed data')
-ax.fill_between(x_test.flat, mu_test-2*sigma_test, mu_test+2*sigma_test, color='red', alpha=0.15, label=r'$2*\text{stddev}$')
-ax.plot(x_test, mu_test, 'r-', lw=2, label=r'Posterior mean')
-ax.legend()
+which we then visualize as
+
+```{code-cell} ipython3
+---
+mystnb:
+  image:
+    align: center
+---
+fig, ax = plt.subplots()
+uncertainty = 1.96 * np.sqrt(np.diag(cov_s))
+
+ax.plot(x_test, y_test, '--', label='True function')
+ax.plot(x_test, mu_s, label='Posterior mean')
+ax.fill_between(
+    x_test.reshape(-1),
+    (mu_s + uncertainty).reshape(-1),
+    (mu_s - uncertainty).reshape(-1),
+    alpha=0.1,
+    color='grey'
+)
+ax.plot(x_train, y_train, 'rx', label='Observed data')
+ax.legend(loc='upper right')
+sns.despine()
 plt.show()
 ```
 
-Of note, we can see that the standard deviation of our predictions is no longer zero for our training data. Moreover,
-we can see that our posterior mean no longer necessarily crosses through the training data points.
+Note how our posterior mean no longer passes through the original data points, as we no longer assume that they represent true function values.
 
-#### Choosing the kernel parameters
+## Numerical stability issues
 
-So far we've assumed a fixed kernel function $k(\cdot, \cdot)$. In practice, typically the kernel will have some hyperparameters
-$\theta$ that we must specify. For example, the radial basis function kernel takes the form
+Our previous implementations have been "correct" in that they match our derived expressions for the posterior mean and covariance. However, matrix inversion can be numerically unstable, rendering the $K^{-1}$ term (in the noise-free case) and the $(K + \sigma^2I)^{-1}$ term (in the noisy case) potentially problematic.
 
-$$ k(\mathbf{x}_p, \mathbf{x}_q) = \sigma^2_f \exp\left(-\frac{1}{2\ell^2}(\mathbf{x}_p -  \mathbf{x}_q)^2\right) $$
+Fortunately, we can exploit the structure of our matrix to achieve a more stable implementation. For any positive-define matrix $A$ (e.g. our kernel matrix $K$) we can decompose $A$ as
 
-where our hyperparameters $\theta = \{\sigma^2_f, \ell\}$ are the signal variance $\sigma^2_f$ and the length-scale $\ell$. To emphasize
-the dependence of a kernel on its hyperparameters, we may sometimes write $k_{\theta}(\cdot, \cdot)$ instead of just $k(\cdot, \cdot)$.
-Note that, with our assumption of i.i.d. Gaussian noise we then have 
+```{math}
+:label: cholesky
+A = LL^{T}
+```
 
-$$ cov(\mathbf{x}_p, \mathbf{x}_q) = \sigma^2_f \exp\left(-\frac{1}{2\ell^2}(\mathbf{x}_p -  \mathbf{x}_q)^2\right) + \delta_{pq}\sigma^2 $$
+This is known as the _Cholesky_ decomposition. Now, starting from the definition of the matrix inverse we have
 
-These parameters can have a _major impact_ on our final predictions. Thus, we need a systematic way to chose "good" values of
-our hyperparameters. One way to do so is to set the parameters via maximum likelihood estimation, i.e., we choose the parameters
-that maximize the likelihood $p(\mathbf{y} \mid X, \theta)$ of our observed training data given the corresponding inputs and
-hyperparameters. Based on our assumptions in the previous subsection, we know
+```{math}
+:label: inverse
+AA^{-1} = I.
+```
 
-$$ \mathbf{y} \mid X, \theta \sim \mathcal{N}(\mathbf{0}, K_{\theta}(X, X) + \sigma_n^2I).$$
+Substituting $A$ in Equation {eq}`inverse` using the expression from Equation {eq}`cholesky` we have
 
-Thus, from the definition of the multivariate Gaussian distribution, we have
+```{math}
+LL^{T}A^{-1} = I.
+```
 
-$$ p(\mathbf{y} \mid X, \theta) = -\frac{1}{2}\mathbf{y}^{T}(K_{\theta}(X, X) + \sigma_n^2I)^{-1}\mathbf{y} - \frac{1}{2}\left|K_{\theta}(X, X) + \sigma_n^2I\right| - \frac{n}{2}\log 2\pi.$$
+Now we can right-multiply both sides of this equation by an arbitrary vector $\y$ to give
 
-We can then optimize $\theta$ (e.g. via gradient ascent) to maximize the above quantity.
+```{math}
+:label: y
+LL^{T}A^{-1}\y = \y.
+```
+
+Which we can write as 
+
+```{math}
+:label: lty
+LL^{T}A^{-1}\y = LT\y.
+```
+
+for some $T$. This then implies 
+
+```{math}
+:label: cholesky_penultimate
+L^{T}\underbrace{A^{-1}\y}_{\gamma} = \underbrace{T\y}_{\omega}.
+```
+
+Now, _why_ did we go through all this extra effort? Note that the terms $A^{-1}\y$ and $T\y$ are both vectors. Thus, Equation {eq}`cholesky_penultimate` can be rewritten as 
+
+```{math}
+:label: cholesky_compact
+L^{T}\alpha = \beta.
+```
+
+Importantly, if we can find the value of $\beta$, solving the above linear equation for $\alpha$ is numerically stable, and allows us to compute $A^{-1}\y$ without inverting $A$ directly. To solve for $\beta$, note that from Equations {eq}`y` and {eq}`lty` we have
+
+```{math}
+L\underbrace{Ty}_{\beta} = y.
+```
+
+From this expression we write
+
+```{math}
+\beta = L\ \backslash\ \y
+```
+
+where the notation $L\ \backslash\ \y$ denotes the vector that results in $\y$ when multipled by $L$. Substituting this result into {eq}`cholesky_compact` we then have
+
+```{math}
+L^{T} \alpha = L\ \backslash\ \y.
+```
+
+Therefore, 
+
+```{math}
+\alpha = L^{T}\ \backslash\ (L\ \backslash\ \y) = A^{-1}\y.
+```
+
+and 
+
+```{math}
+\bar{f}_{*} = \k_{*}^{T}\alpha.
+```
+
+Thus, we can compute our posterior mean by solving two systems of equations rather than directly inverting any matrices. Now we proceed similarly for the posterior variance.
+
+We have 
+
+```{math}
+\sigma^2_{*} = k(\x_*, \x_*) - \k_*^TA^{-1}\k_*,
+```
+
+with a problematic matrix inverse in the $\k_*^TA^{-1}\k_*$ term. Proceeding via Cholesky, we have
+
+```{math}
+\k_*^TA^{-1}\k_* = \k_*^T(LL^{T})^{-1}\k_* = \k_*^{T}(L^{T})^{-1}L^{-1}\k_* = \v^{T}\v,
+```
+
+where $\v = L^{-1}\k_*$. Notably, we can solve for $\v$ without directly computing the inverse as we can write $L\v = \k_*$ so $\v = L\ \backslash\ \k_*$. We then have
+
+```{math}
+\sigma^2_{*} = k(\x_*, \x_*) - \v^{T}\v,
+```
+
+We reimplement Gaussian process regression for the noisy case using this idea below:
+
+```{code-cell} ipython3
+---
+mystnb:
+  image:
+    align: center
+---
+K = kernel(x_train, x_train, l, sigma_f) + noise * np.eye(len(x_train))
+L = np.linalg.cholesky(K, upper=False)
+beta = np.linalg.solve(L, y_train)
+alpha = np.linalg.solve(L.T, beta)
+
+K_s = kernel(x_train, x_test, l, sigma_f)
+K_ss = kernel(x_test, x_test, l, sigma_f)
+
+v = np.linalg.solve(L, K_s)
+
+mu_s = K_s.T.dot(alpha).reshape(-1)
+diag_cov = np.diag(K_ss) - np.sum(v*v, axis=0)
+
+fig, ax = plt.subplots()
+uncertainty = 1.96 * np.sqrt(diag_cov)
+
+ax.plot(x_test, y_test, '--', label='True function')
+ax.plot(x_test, mu_s, label='Posterior mean')
+ax.fill_between(
+    x_test.reshape(-1),
+    (mu_s + uncertainty).reshape(-1),
+    (mu_s - uncertainty).reshape(-1),
+    alpha=0.1,
+    color='grey'
+)
+ax.plot(x_train, y_train, 'rx', label='Observed data')
+ax.legend(loc='upper right')
+sns.despine()
+```

@@ -8,4 +8,6 @@ chapters:
   sections:
     - file: content/gaussian_processes/preliminaries
     - file: content/gaussian_processes/gp_regression
+    - file: content/gaussian_processes/kernel_parameters
     - file: content/gaussian_processes/pseudo_data
+    - file: content/gaussian_processes/variational_inducing_points.md

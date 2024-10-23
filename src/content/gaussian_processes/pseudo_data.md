@@ -34,10 +34,10 @@ where $k_{\mathbf{x}} \in \mathbb{R}^{M}$ is shorthand for a vector with entries
 
 ```{math}
 :label: likelihood
-p(\mathbf{y} \mid X, \bar{X}, \bar{\mathbf{f}}) = \prod_{n=1}^{N} p(y_n \mid \mathbf{x}_n, \bar{X}, \bar{\mathbf{f}}) = \mathcal{N}(\mathbf{y} \mid K_{NM}K_{M}^{-1}\bar{\mathbf{f}}, \mathbf{\Lambda} + \sigma^2I),
+p(\mathbf{y} \mid X, \bar{X}, \bar{\mathbf{f}}) = \prod_{n=1}^{N} p(y_n \mid \mathbf{x}_n, \bar{X}, \bar{\mathbf{f}}) = \mathcal{N}(\mathbf{y} \mid K_{X\bar{X}}K_{\bar{X}\bar{X}}^{-1}\bar{\mathbf{f}}, \mathbf{\Lambda} + \sigma^2I),
 ```
 
-where $\mathbf{\Lambda} = \text{diag}(\mathbf{\lambda})$, and $\lambda_n = K_{\mathbf{x}_n\mathbf{x}_n} - k_{\mathbf{x}_n}^{T}K_{M}^{-1}k_{\mathbf{x}_n}$. With our model specified, we must now resolve two issues. First, we neeed to specify some criterion for choosing a "good" pseudo-dataset.
+where $\mathbf{\Lambda} = \text{diag}(\mathbf{\lambda})$, and $\lambda_n = K_{\mathbf{x}_n\mathbf{x}_n} - k_{\mathbf{x}_n}^{T}K_{\bar{X}\bar{X}}^{-1}k_{\mathbf{x}_n}$. With our model specified, we must now resolve two issues. First, we neeed to specify some criterion for choosing a "good" pseudo-dataset.
 
 One way to do so would be to optimize $\bar{\mathbf{f}}$ and $\bar{X}$ to maximize the above likelihood. However, by treating $\bar{\mathbf{f}}$ with some uncertainty we can actually make our lives easier and avoid the need to optimize this quantity altogether. To ensure that the pseudo data outputs model the true dataset well, it's reasonable to assume that that they follow the same prior as true data points, i.e.,
 
@@ -52,7 +52,7 @@ $$ p(\mathbf{y} \mid X, \bar{X}) = \int p(\mathbf{y} \mid X, \bar{X}, \bar{\math
 
 From the properties of Gaussians this integral has a closed form and results in
 
-$$ p(\mathbf{y} \mid X, \bar{X}) = \mathcal{N}(\mathbf{y} \mid 0, K_{NM}K_{M}^{-1}K_{MN} + \mathbf{\Lambda} + \sigma^2I).$$
+$$ p(\mathbf{y} \mid X, \bar{X}) = \mathcal{N}(\mathbf{y} \mid 0, K_{X\bar{X}}K_{\bar{X}\bar{X}}^{-1}K_{\bar{X}X} + \mathbf{\Lambda} + \sigma^2I).$$
 
 And so we can find a good set of pseudo-inputs $\bar{X}$ by maximizing the above expression for the marginal likelihood. Next, we need a way to make predictions on the distribution of unseen points given our observed data. In other words, we need a method for computing $p(y_* \mid \mathbf{x}_*, X, \bar{X}, \mathbf{y})$. Of particular note, we can't simply reuse our result from Equation {eq}`likelihood`, as that expression depends on the pseudo-outputs $\bar{\mathbf{f}}$, which we chose not to learn. Thus, we must instead compute
 
