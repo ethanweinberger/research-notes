@@ -11,3 +11,7 @@ chapters:
     - file: content/gaussian_processes/kernel_parameters
     - file: content/gaussian_processes/pseudo_data
     - file: content/gaussian_processes/variational_inducing_points.md
+- file: content/misc/overview
+  sections:
+    - file: content/misc/exponential_family
+    - file: content/misc/rna_velocity

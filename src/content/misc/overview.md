@@ -1,0 +1,6 @@
+# Misc.
+
+Miscellaneous notes.
+
+```{tableofcontents}
+```
