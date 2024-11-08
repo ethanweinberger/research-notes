@@ -22,9 +22,7 @@ where $\gamma$ denotes the (time-independent) degradation rate of mature mRNAs. 
 
 ---
 
-We begin with Equation {eq}`unspliced` for unspliced RNAs.
-
-To solve this equation, we'll proceed via [integrating factors](https://en.wikipedia.org/wiki/Integrating_factor). To do so, we need to rewrite our equation in the form:
+We begin with Equation {eq}`unspliced` for unspliced RNAs. To solve this equation, we'll proceed via [integrating factors](https://en.wikipedia.org/wiki/Integrating_factor). To do so, we need to rewrite our equation in the form:
 
 ```{math}
 \frac{du}{dt} + P(t)u = Q(t)
